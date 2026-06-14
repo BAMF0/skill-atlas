@@ -166,7 +166,7 @@ export default function QuestList({
         </button>
 
         {isExpanded && (
-          <div className="p-3 space-y-1.5 bg-white">
+          <div className="p-3 space-y-1.5 bg-white dark:bg-warm-100">
             {levelQuests.length === 0 && addingForLevel !== levelNum && (
               <p className="text-xs text-warm-400 text-center py-3 italic">
                 No quests for this level yet
@@ -185,14 +185,14 @@ export default function QuestList({
             ))}
 
             {addingForLevel === levelNum ? (
-              <div className="border border-warm-200 rounded-lg p-3 bg-warm-50 space-y-2 mt-2">
+              <div className="border border-warm-200 rounded-lg p-3 bg-warm-50 dark:bg-warm-100 space-y-2 mt-2">
                 <input
                   autoFocus
                   type="text"
                   placeholder="Quest title"
                   value={form.title}
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+                  className="w-full bg-white dark:bg-warm-200 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleAddQuest(levelNum);
                     if (e.key === "Escape") setAddingForLevel(null);
@@ -203,7 +203,7 @@ export default function QuestList({
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   rows={2}
-                  className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
+                  className="w-full bg-white dark:bg-warm-200 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
                 />
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
@@ -214,7 +214,7 @@ export default function QuestList({
                       max="1000"
                       value={form.xp_reward}
                       onChange={(e) => setForm((f) => ({ ...f, xp_reward: e.target.value }))}
-                      className="w-16 bg-white border border-warm-200 rounded px-2 py-1 text-sm text-warm-900 focus:outline-none focus:border-warm-400"
+                      className="w-16 bg-white dark:bg-warm-200 border border-warm-200 rounded px-2 py-1 text-sm text-warm-900 focus:outline-none focus:border-warm-400"
                     />
                   </div>
                   <label className="flex items-center gap-1.5 text-xs text-warm-500 cursor-pointer">

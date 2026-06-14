@@ -1,3 +1,7 @@
+#[cfg(feature = "local-server")]
+mod server;
+
+use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 // Opens a native save-file dialog and writes `content` to the chosen path.
@@ -69,6 +73,18 @@ pub fn run() {
     ];
 
     tauri::Builder::default()
+        .setup(|app| {
+            #[cfg(feature = "local-server")]
+            {
+                let db_path = app
+                    .path()
+                    .app_data_dir()
+                    .expect("no app data dir")
+                    .join("skillatlas.db");
+                tauri::async_runtime::spawn(server::start(db_path));
+            }
+            Ok(())
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_sql::Builder::default()

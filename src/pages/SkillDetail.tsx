@@ -189,7 +189,7 @@ export default function SkillDetail() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="bg-white border-b border-warm-200 px-8 pt-7 pb-0 flex-shrink-0">
+      <div className="bg-white dark:bg-warm-200 border-b border-warm-200 px-4 md:px-8 pt-5 md:pt-7 pb-0 flex-shrink-0">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-start gap-3 min-w-0">
             {editing ? (
@@ -236,7 +236,7 @@ export default function SkillDetail() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             {editing ? (
               <>
                 <div className="flex gap-1.5">
@@ -339,12 +339,12 @@ export default function SkillDetail() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-0 -mb-px">
+        <div className="flex gap-0 -mb-px overflow-x-auto">
           {(["quests", "materials", "resources", "history"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-4 py-2.5 text-sm border-b-2 transition-colors capitalize ${
+              className={`px-4 py-2.5 text-sm border-b-2 transition-colors capitalize flex-shrink-0 ${
                 tab === t
                   ? "border-warm-900 text-warm-900 font-medium"
                   : "border-transparent text-warm-400 hover:text-warm-600"
@@ -357,7 +357,7 @@ export default function SkillDetail() {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto p-8">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8">
         {tab === "quests" && (
           <>
             <div className="flex justify-end mb-4">
@@ -390,7 +390,7 @@ export default function SkillDetail() {
                 <p className="text-xs font-medium text-warm-400 uppercase tracking-widest mb-2">Required</p>
                 <div className="space-y-1.5">
                   {materials.filter((m) => !m.is_optional).map((m) => (
-                    <div key={m.id} className="flex items-start gap-3 px-4 py-3 bg-white border border-warm-200 rounded-xl group">
+                    <div key={m.id} className="flex items-start gap-3 px-4 py-3 bg-white dark:bg-warm-200 border border-warm-200 rounded-xl group">
                       {m.category && (
                         <span className="text-xs text-warm-400 bg-warm-50 border border-warm-100 rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5 capitalize">
                           {m.category}
@@ -423,7 +423,7 @@ export default function SkillDetail() {
                 <p className="text-xs font-medium text-warm-400 uppercase tracking-widest mb-2 mt-4">Optional</p>
                 <div className="space-y-1.5">
                   {materials.filter((m) => m.is_optional).map((m) => (
-                    <div key={m.id} className="flex items-start gap-3 px-4 py-3 bg-white border border-warm-100 rounded-xl opacity-75 group hover:opacity-100 transition-opacity">
+                    <div key={m.id} className="flex items-start gap-3 px-4 py-3 bg-white dark:bg-warm-200 border border-warm-100 rounded-xl opacity-75 group hover:opacity-100 transition-opacity">
                       {m.category && (
                         <span className="text-xs text-warm-300 bg-warm-50 border border-warm-100 rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5 capitalize">
                           {m.category}
@@ -458,7 +458,7 @@ export default function SkillDetail() {
             )}
 
             {showAddMaterial ? (
-              <div className="border border-warm-200 rounded-xl p-4 bg-white space-y-3">
+              <div className="border border-warm-200 rounded-xl p-4 bg-white dark:bg-warm-200 space-y-3">
                 <h3 className="font-serif text-sm font-semibold text-warm-800">Add Material</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2">
@@ -468,13 +468,13 @@ export default function SkillDetail() {
                       placeholder="Name"
                       value={materialForm.name}
                       onChange={(e) => setMaterialForm((f) => ({ ...f, name: e.target.value }))}
-                      className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+                      className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
                     />
                   </div>
                   <select
                     value={materialForm.category}
                     onChange={(e) => setMaterialForm((f) => ({ ...f, category: e.target.value }))}
-                    className="bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 focus:outline-none focus:border-warm-400"
+                    className="bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 focus:outline-none focus:border-warm-400"
                   >
                     {MATERIAL_CATEGORIES.map((c) => (
                       <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
@@ -495,7 +495,7 @@ export default function SkillDetail() {
                       placeholder="URL (optional)"
                       value={materialForm.url}
                       onChange={(e) => setMaterialForm((f) => ({ ...f, url: e.target.value }))}
-                      className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+                      className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
                     />
                   </div>
                   <div className="col-span-2">
@@ -504,7 +504,7 @@ export default function SkillDetail() {
                       value={materialForm.notes}
                       onChange={(e) => setMaterialForm((f) => ({ ...f, notes: e.target.value }))}
                       rows={2}
-                      className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
+                      className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
                     />
                   </div>
                 </div>
@@ -547,7 +547,7 @@ export default function SkillDetail() {
             ))}
 
             {showAddResource ? (
-              <div className="border border-warm-200 rounded-xl p-4 bg-white space-y-3">
+              <div className="border border-warm-200 rounded-xl p-4 bg-white dark:bg-warm-200 space-y-3">
                 <h3 className="font-serif text-sm font-semibold text-warm-800">Add Resource</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2">
@@ -557,7 +557,7 @@ export default function SkillDetail() {
                       placeholder="Title"
                       value={resourceForm.title}
                       onChange={(e) => setResourceForm((f) => ({ ...f, title: e.target.value }))}
-                      className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+                      className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
                     />
                   </div>
                   <input
@@ -565,12 +565,12 @@ export default function SkillDetail() {
                     placeholder="Author (optional)"
                     value={resourceForm.author}
                     onChange={(e) => setResourceForm((f) => ({ ...f, author: e.target.value }))}
-                    className="bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+                    className="bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
                   />
                   <select
                     value={resourceForm.type}
                     onChange={(e) => setResourceForm((f) => ({ ...f, type: e.target.value }))}
-                    className="bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 focus:outline-none focus:border-warm-400"
+                    className="bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 focus:outline-none focus:border-warm-400"
                   >
                     {RESOURCE_TYPES.map((t) => (
                       <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
@@ -582,7 +582,7 @@ export default function SkillDetail() {
                       placeholder="URL (optional)"
                       value={resourceForm.url}
                       onChange={(e) => setResourceForm((f) => ({ ...f, url: e.target.value }))}
-                      className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+                      className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
                     />
                   </div>
                   <div className="col-span-2">
@@ -591,7 +591,7 @@ export default function SkillDetail() {
                       value={resourceForm.notes}
                       onChange={(e) => setResourceForm((f) => ({ ...f, notes: e.target.value }))}
                       rows={2}
-                      className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
+                      className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
                     />
                   </div>
                 </div>
@@ -633,16 +633,19 @@ export default function SkillDetail() {
               xpLog.map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex items-center justify-between px-4 py-3 bg-white border border-warm-200 rounded-lg"
+                  className="flex items-center justify-between px-4 py-3 bg-white dark:bg-warm-200 border border-warm-200 rounded-lg"
                 >
                   <div>
                     <p className="text-sm text-warm-800">
                       {entry.source === "quest_completion" && entry.quest_title
                         ? entry.quest_title
                         : entry.source === "manual"
-                        ? `Manual XP${entry.note ? ` — ${entry.note}` : ""}`
+                        ? "Manual XP"
                         : entry.source}
                     </p>
+                    {entry.note && (
+                      <p className="text-xs text-warm-400 italic mt-0.5">{entry.note}</p>
+                    )}
                     <p className="text-xs text-warm-400 mt-0.5">
                       {new Date(entry.logged_at).toLocaleString()}
                     </p>
@@ -691,7 +694,7 @@ export default function SkillDetail() {
             if (e.key === "Enter" && deleteInput === skill.name) handleDelete();
           }}
           placeholder={skill.name}
-          className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400 mb-4"
+          className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400 mb-4"
         />
         <div className="flex gap-2 justify-end">
           <button

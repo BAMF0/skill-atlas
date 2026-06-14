@@ -24,7 +24,7 @@ export default function ResourceLink({ resource, onDeleted }: ResourceLinkProps)
   };
 
   return (
-    <div className="flex items-start gap-3 p-3 bg-white border border-warm-200 rounded-lg group hover:border-warm-300 transition-colors">
+    <div className="flex items-start gap-3 p-3 bg-white dark:bg-warm-200 border border-warm-200 rounded-lg group hover:border-warm-300 transition-colors">
       <span className="text-xs font-medium text-warm-400 bg-warm-100 rounded px-1.5 py-1 flex-shrink-0 mt-0.5 tabular-nums tracking-tight">
         {abbr}
       </span>

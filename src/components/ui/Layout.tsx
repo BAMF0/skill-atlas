@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useSkillStore } from "../../store/useSkillStore";
+import { useThemeStore } from "../../store/useThemeStore";
 import Toaster from "./Toaster";
 import { useToastStore } from "../../store/useToastStore";
 import { exportBackup, pickBackupFile, type BackupFile } from "../../lib/backup";
@@ -8,15 +9,21 @@ import ImportBackupModal from "./ImportBackupModal";
 
 export default function Layout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { skills, loadSkills } = useSkillStore();
   const { addToast } = useToastStore();
+  const { isDark, toggle } = useThemeStore();
   const [pendingBackup, setPendingBackup] = useState<BackupFile | null>(null);
+  const [showOverflow, setShowOverflow] = useState(false);
+
+  const isHome = location.pathname === "/";
 
   useEffect(() => {
     loadSkills();
   }, [loadSkills]);
 
   async function handleExport() {
+    setShowOverflow(false);
     try {
       const saved = await exportBackup();
       if (saved) addToast("Backup saved", "success");
@@ -26,6 +33,7 @@ export default function Layout() {
   }
 
   async function handleImportPick() {
+    setShowOverflow(false);
     try {
       const backup = await pickBackupFile();
       if (backup) setPendingBackup(backup);
@@ -34,10 +42,13 @@ export default function Layout() {
     }
   }
 
+  const navActive = "bg-warm-200 dark:bg-warm-200 text-warm-900 font-medium";
+  const navIdle = "text-warm-600 hover:text-warm-900 hover:bg-warm-200/60";
+
   return (
     <div className="flex h-screen bg-warm-50 text-warm-900 overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-56 bg-warm-100 border-r border-warm-200 flex flex-col flex-shrink-0">
+      {/* Sidebar — desktop only */}
+      <aside className="hidden md:flex w-56 bg-warm-100 border-r border-warm-200 flex-col flex-shrink-0">
         {/* Brand */}
         <div className="px-5 py-5 border-b border-warm-200">
           <NavLink to="/" className="block">
@@ -62,9 +73,7 @@ export default function Layout() {
                 to={`/skill/${skill.id}`}
                 className={({ isActive }) =>
                   `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    isActive
-                      ? "bg-white shadow-sm text-warm-900 font-medium"
-                      : "text-warm-600 hover:text-warm-900 hover:bg-white/60"
+                    isActive ? navActive : navIdle
                   }`
                 }
               >
@@ -91,9 +100,7 @@ export default function Layout() {
             to="/resources"
             className={({ isActive }) =>
               `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                isActive
-                  ? "bg-white shadow-sm text-warm-900 font-medium"
-                  : "text-warm-600 hover:text-warm-900 hover:bg-white/60"
+                isActive ? navActive : navIdle
               }`
             }
           >
@@ -101,7 +108,7 @@ export default function Layout() {
           </NavLink>
         </div>
 
-        {/* New skill */}
+        {/* New skill + actions */}
         <div className="p-3 border-t border-warm-200 space-y-2">
           <button
             onClick={() => navigate("/skill/new")}
@@ -126,14 +133,104 @@ export default function Layout() {
             >
               Import
             </button>
+            <button
+              onClick={toggle}
+              title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+              className="px-2 py-1.5 text-warm-600 hover:text-warm-900 bg-transparent hover:bg-warm-200 rounded-md transition-colors text-sm leading-none"
+            >
+              {isDark ? "☀" : "☾"}
+            </button>
           </div>
         </div>
       </aside>
 
+      {/* Mobile top bar */}
+      <div className="md:hidden fixed top-0 inset-x-0 z-40 h-12 bg-warm-100 border-b border-warm-200 flex items-center px-4 gap-3">
+        {!isHome ? (
+          <button
+            onClick={() => navigate(-1)}
+            className="w-8 h-8 flex items-center justify-center text-warm-600 hover:text-warm-900 -ml-1"
+          >
+            ‹
+          </button>
+        ) : (
+          <div className="w-8" />
+        )}
+        <span className="font-serif text-sm font-semibold text-warm-900 flex-1">Skill Atlas</span>
+        <div className="relative">
+          <button
+            onClick={() => setShowOverflow((v) => !v)}
+            className="w-8 h-8 flex items-center justify-center text-warm-500 hover:text-warm-900 text-lg leading-none"
+          >
+            ···
+          </button>
+          {showOverflow && (
+            <>
+              <div className="fixed inset-0" onClick={() => setShowOverflow(false)} />
+              <div className="absolute right-0 top-9 bg-warm-50 border border-warm-200 rounded-lg shadow-lg py-1 min-w-[140px] z-50">
+                <button
+                  onClick={() => { toggle(); setShowOverflow(false); }}
+                  className="w-full text-left px-4 py-2 text-sm text-warm-700 hover:bg-warm-100"
+                >
+                  {isDark ? "☀ Light mode" : "☾ Dark mode"}
+                </button>
+                <div className="border-t border-warm-200 my-1" />
+                <button
+                  onClick={handleExport}
+                  className="w-full text-left px-4 py-2 text-sm text-warm-700 hover:bg-warm-100"
+                >
+                  Export backup
+                </button>
+                <button
+                  onClick={handleImportPick}
+                  className="w-full text-left px-4 py-2 text-sm text-warm-700 hover:bg-warm-100"
+                >
+                  Import backup
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Main content */}
-      <main className="flex-1 overflow-auto bg-warm-50">
+      <main className="flex-1 overflow-auto bg-warm-50 pt-12 md:pt-0 pb-16 md:pb-0">
         <Outlet />
       </main>
+
+      {/* Mobile bottom nav */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 h-16 bg-warm-100 border-t border-warm-200 flex items-center">
+        <NavLink
+          to="/"
+          className={({ isActive }) =>
+            `flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] text-xs transition-colors ${
+              isActive ? "text-warm-900 font-medium" : "text-warm-500"
+            }`
+          }
+        >
+          <span className="text-base leading-none">⌂</span>
+          <span>Home</span>
+        </NavLink>
+
+        <button
+          onClick={() => navigate("/skill/new")}
+          className="flex-shrink-0 mx-4 w-12 h-12 bg-warm-900 hover:bg-warm-800 text-warm-50 rounded-full flex items-center justify-center text-xl font-light shadow-md active:scale-95 transition-transform"
+        >
+          +
+        </button>
+
+        <NavLink
+          to="/resources"
+          className={({ isActive }) =>
+            `flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] text-xs transition-colors ${
+              isActive ? "text-warm-900 font-medium" : "text-warm-500"
+            }`
+          }
+        >
+          <span className="text-base leading-none">◎</span>
+          <span>Resources</span>
+        </NavLink>
+      </nav>
 
       <Toaster />
 

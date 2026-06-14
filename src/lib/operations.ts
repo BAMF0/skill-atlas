@@ -22,7 +22,32 @@ import type {
 
 export async function getAllSkills(): Promise<Skill[]> {
   const db = await getDb();
-  return db.select<Skill[]>("SELECT * FROM skills ORDER BY name ASC");
+  const all = await db.select<Skill[]>("SELECT * FROM skills ORDER BY name ASC");
+  return all.filter((s) => !s.is_paused);
+}
+
+export async function getPausedSkills(): Promise<Skill[]> {
+  const db = await getDb();
+  const all = await db.select<Skill[]>("SELECT * FROM skills ORDER BY name ASC");
+  return all.filter((s) => Boolean(s.is_paused));
+}
+
+export async function pauseSkill(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE skills SET is_paused = 1 WHERE id = ?", [id]);
+}
+
+export async function resumeSkill(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE skills SET is_paused = 0 WHERE id = ?", [id]);
+}
+
+export async function getLastPracticedPerSkill(): Promise<Record<number, string>> {
+  const db = await getDb();
+  const rows = await db.select<{ skill_id: number; last_at: string }[]>(
+    "SELECT skill_id, MAX(logged_at) as last_at FROM xp_log GROUP BY skill_id"
+  );
+  return Object.fromEntries(rows.map((r) => [r.skill_id, r.last_at]));
 }
 
 export async function getSkill(id: number): Promise<Skill | null> {
@@ -235,8 +260,8 @@ export async function completeQuest(
     [questId, notes ?? null]
   );
   await db.execute(
-    "INSERT INTO xp_log (skill_id, quest_id, amount, source) VALUES (?, ?, ?, 'quest_completion')",
-    [quest.skill_id, questId, quest.xp_reward]
+    "INSERT INTO xp_log (skill_id, quest_id, amount, source, note) VALUES (?, ?, ?, 'quest_completion', ?)",
+    [quest.skill_id, questId, quest.xp_reward, notes ?? null]
   );
   await db.execute(
     "UPDATE skills SET current_xp = ?, current_level = ? WHERE id = ?",

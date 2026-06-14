@@ -66,7 +66,7 @@ export default function Resources() {
   }, {});
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="p-4 md:p-8 max-w-3xl mx-auto">
       <div className="flex items-baseline justify-between mb-6">
         <div>
           <h1 className="font-serif text-2xl font-semibold text-warm-900">Resource Library</h1>
@@ -81,11 +81,11 @@ export default function Resources() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <select
           value={filterSkill === "all" ? "all" : String(filterSkill)}
           onChange={(e) => setFilterSkill(e.target.value === "all" ? "all" : parseInt(e.target.value))}
-          className="bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 focus:outline-none focus:border-warm-400"
+          className="bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 focus:outline-none focus:border-warm-400"
         >
           <option value="all">All Skills</option>
           {skills.map((s) => (
@@ -95,7 +95,7 @@ export default function Resources() {
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 focus:outline-none focus:border-warm-400"
+          className="bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 focus:outline-none focus:border-warm-400"
         >
           <option value="all">All Types</option>
           {RESOURCE_TYPES.map((t) => (
@@ -106,7 +106,7 @@ export default function Resources() {
 
       {/* Add form */}
       {showAdd && (
-        <div className="border border-warm-200 rounded-xl p-5 bg-white mb-5 space-y-3">
+        <div className="border border-warm-200 rounded-xl p-5 bg-white dark:bg-warm-200 mb-5 space-y-3">
           <h3 className="font-serif text-sm font-semibold text-warm-800">New Resource</h3>
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
@@ -116,7 +116,7 @@ export default function Resources() {
                 placeholder="Title"
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+                className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
               />
             </div>
             <input
@@ -124,12 +124,12 @@ export default function Resources() {
               placeholder="Author (optional)"
               value={form.author}
               onChange={(e) => setForm((f) => ({ ...f, author: e.target.value }))}
-              className="bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+              className="bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
             />
             <select
               value={form.type}
               onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
-              className="bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 focus:outline-none focus:border-warm-400"
+              className="bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 focus:outline-none focus:border-warm-400"
             >
               {RESOURCE_TYPES.map((t) => (
                 <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
@@ -138,7 +138,7 @@ export default function Resources() {
             <select
               value={form.skill_id}
               onChange={(e) => setForm((f) => ({ ...f, skill_id: e.target.value }))}
-              className="bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 focus:outline-none focus:border-warm-400"
+              className="bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 focus:outline-none focus:border-warm-400"
             >
               <option value="">No skill link</option>
               {skills.map((s) => (
@@ -150,7 +150,7 @@ export default function Resources() {
               placeholder="URL (optional)"
               value={form.url}
               onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
-              className="bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+              className="bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
             />
             <div className="col-span-2">
               <textarea
@@ -158,7 +158,7 @@ export default function Resources() {
                 value={form.notes}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                 rows={2}
-                className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
+                className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
               />
             </div>
           </div>

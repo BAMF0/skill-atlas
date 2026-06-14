@@ -9,6 +9,7 @@ export interface Skill {
   icon: string | null;
   current_level: number;
   current_xp: number;
+  is_paused: number; // 0 | 1
   created_at: string;
 }
 

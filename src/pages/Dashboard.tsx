@@ -4,21 +4,38 @@ import { useSkillStore } from "../store/useSkillStore";
 import { useToastStore } from "../store/useToastStore";
 import SkillCard from "../components/skill/SkillCard";
 import ActiveQuestCard from "../components/quest/ActiveQuestCard";
-import { getActiveQuests, getSkill } from "../lib/operations";
-import type { ActiveQuest, CompleteQuestResult } from "../types";
+import {
+  getActiveQuests,
+  getSkill,
+  getLastPracticedPerSkill,
+  getPausedSkills,
+  pauseSkill,
+  resumeSkill,
+} from "../lib/operations";
+import type { ActiveQuest, CompleteQuestResult, Skill } from "../types";
 
 export default function Dashboard() {
   const { skills, isLoading, loadSkills, upsertSkill } = useSkillStore();
   const { addToast } = useToastStore();
   const navigate = useNavigate();
   const [activeQuests, setActiveQuests] = useState<ActiveQuest[]>([]);
+  const [lastPracticed, setLastPracticed] = useState<Record<number, string>>({});
+  const [pausedSkills, setPausedSkills] = useState<Skill[]>([]);
+  const [showPaused, setShowPaused] = useState(false);
 
   useEffect(() => {
     loadSkills();
     getActiveQuests().then(setActiveQuests);
+    getLastPracticedPerSkill().then(setLastPracticed);
+    getPausedSkills().then(setPausedSkills);
   }, [loadSkills]);
 
   const refreshActive = () => getActiveQuests().then(setActiveQuests);
+
+  const activeBySkill = activeQuests.reduce<Record<number, number>>((acc, q) => {
+    acc[q.skill_id] = (acc[q.skill_id] ?? 0) + 1;
+    return acc;
+  }, {});
 
   const handleCompleted = async (quest: ActiveQuest, result: CompleteQuestResult) => {
     if (result.leveledUp) {
@@ -29,6 +46,19 @@ export default function Dashboard() {
     const updated = await getSkill(quest.skill_id);
     if (updated) upsertSkill(updated);
     await refreshActive();
+    getLastPracticedPerSkill().then(setLastPracticed);
+  };
+
+  const handlePause = async (id: number) => {
+    await pauseSkill(id);
+    await loadSkills();
+    getPausedSkills().then(setPausedSkills);
+  };
+
+  const handleResume = async (id: number) => {
+    await resumeSkill(id);
+    await loadSkills();
+    getPausedSkills().then(setPausedSkills);
   };
 
   if (isLoading) {
@@ -39,7 +69,7 @@ export default function Dashboard() {
     );
   }
 
-  if (skills.length === 0) {
+  if (skills.length === 0 && pausedSkills.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center px-6 py-16">
         <p className="font-serif text-2xl text-warm-800 mb-2">Your atlas is empty</p>
@@ -57,18 +87,18 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto">
       {/* In Progress */}
       {activeQuests.length === 0 ? (
         <p className="text-sm text-warm-400 mb-8">
-          Nothing in progress yet —{" "}
+          All caught up —{" "}
           <button
-            onClick={() => navigate(`/skill/${skills[0].id}`)}
+            onClick={() => navigate(`/skill/${skills[0]?.id ?? ""}`)}
             className="underline underline-offset-2 hover:text-warm-600 transition-colors"
           >
             open a skill
           </button>{" "}
-          and accept a quest to get started.
+          to pick your next quest.
         </p>
       ) : (
         <div className="mb-8">
@@ -91,7 +121,7 @@ export default function Dashboard() {
       )}
 
       {/* Skills grid */}
-      <div className="flex items-baseline justify-between mb-8">
+      <div className="flex items-baseline justify-between mb-4">
         <div>
           <h1 className="font-serif text-2xl font-semibold text-warm-900">Your Skills</h1>
           <p className="text-sm text-warm-400 mt-0.5">
@@ -100,17 +130,54 @@ export default function Dashboard() {
         </div>
         <button
           onClick={() => navigate("/skill/new")}
-          className="px-4 py-2 bg-warm-900 hover:bg-warm-800 text-warm-50 rounded-lg text-sm font-medium transition-colors"
+          className="px-4 py-2 border border-warm-300 hover:border-warm-400 hover:bg-warm-100 text-warm-600 rounded-lg text-sm transition-colors"
         >
           + Add Skill
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-4">
         {skills.map((skill) => (
-          <SkillCard key={skill.id} skill={skill} />
+          <SkillCard
+            key={skill.id}
+            skill={skill}
+            activeQuestCount={activeBySkill[skill.id] ?? 0}
+            lastPracticed={lastPracticed[skill.id]}
+            onPause={handlePause}
+          />
         ))}
       </div>
+
+      {/* Paused skills */}
+      {pausedSkills.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowPaused((v) => !v)}
+            className="text-xs text-warm-400 hover:text-warm-600 transition-colors mb-3"
+          >
+            {showPaused ? "▾" : "▸"} Paused ({pausedSkills.length})
+          </button>
+          {showPaused && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 opacity-50">
+              {pausedSkills.map((skill) => (
+                <div key={skill.id} className="relative">
+                  <SkillCard
+                    skill={skill}
+                    activeQuestCount={0}
+                    lastPracticed={lastPracticed[skill.id]}
+                  />
+                  <button
+                    onClick={() => handleResume(skill.id)}
+                    className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-warm-50/80 dark:bg-warm-100/80 rounded-xl text-xs font-medium text-warm-700"
+                  >
+                    Resume skill
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

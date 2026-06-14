@@ -82,7 +82,7 @@ export default function NewSkill() {
   if (step === "library") {
     return (
       <>
-      <div className="p-8 max-w-3xl mx-auto">
+      <div className="p-4 md:p-8 max-w-3xl mx-auto">
         <div className="flex items-center gap-3 mb-7">
           <button onClick={() => navigate(-1)} className="text-warm-400 hover:text-warm-700 text-sm transition-colors">
             ← Back
@@ -98,7 +98,7 @@ export default function NewSkill() {
             <button
               key={template.id}
               onClick={() => pickTemplate(template)}
-              className="text-left p-4 bg-white border border-warm-200 hover:border-warm-300 hover:shadow-sm rounded-xl transition-all group"
+              className="text-left p-4 bg-white dark:bg-warm-200 border border-warm-200 hover:border-warm-300 hover:shadow-sm rounded-xl transition-all group"
             >
               <div className="flex items-center gap-2.5 mb-2">
                 <span
@@ -165,7 +165,7 @@ export default function NewSkill() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Preview */}
-        <div className="p-4 rounded-xl bg-white border border-warm-200 flex items-center gap-3">
+        <div className="p-4 rounded-xl bg-white dark:bg-warm-200 border border-warm-200 flex items-center gap-3">
           <div
             className="w-1 self-stretch rounded-full"
             style={{ backgroundColor: form.color }}
@@ -193,7 +193,7 @@ export default function NewSkill() {
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="e.g. Guitar, Python, Drawing…"
-            className="w-full bg-white border border-warm-200 rounded-lg px-4 py-2.5 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+            className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-4 py-2.5 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
           />
         </div>
 
@@ -207,7 +207,7 @@ export default function NewSkill() {
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             placeholder="What's your goal with this skill?"
             rows={2}
-            className="w-full bg-white border border-warm-200 rounded-lg px-4 py-2.5 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
+            className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-4 py-2.5 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
           />
         </div>
 
@@ -222,7 +222,7 @@ export default function NewSkill() {
             value={form.category}
             onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
             placeholder="e.g. Music"
-            className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2.5 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+            className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2.5 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
           />
           <datalist id="categories">
             {CATEGORIES.map((c) => <option key={c} value={c} />)}

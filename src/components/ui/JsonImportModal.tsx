@@ -318,7 +318,7 @@ export function QuestImportModal({ skillId, skillName, onClose, onImported }: Qu
               setLevelFrom(v);
               if (v > levelTo) setLevelTo(v);
             }}
-            className="bg-white border border-warm-200 rounded-lg px-2 py-1 text-xs text-warm-800 focus:outline-none focus:border-warm-400"
+            className="bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-2 py-1 text-xs text-warm-800 focus:outline-none focus:border-warm-400"
           >
             {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>{n}</option>
@@ -332,7 +332,7 @@ export function QuestImportModal({ skillId, skillName, onClose, onImported }: Qu
               setLevelTo(v);
               if (v < levelFrom) setLevelFrom(v);
             }}
-            className="bg-white border border-warm-200 rounded-lg px-2 py-1 text-xs text-warm-800 focus:outline-none focus:border-warm-400"
+            className="bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-2 py-1 text-xs text-warm-800 focus:outline-none focus:border-warm-400"
           >
             {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>{n}</option>
@@ -375,7 +375,7 @@ export function QuestImportModal({ skillId, skillName, onClose, onImported }: Qu
           onChange={(e) => { setText(e.target.value); setPreview(null); setError(""); }}
           placeholder='[{"level_num": 1, "title": "...", "xp_reward": 50, "is_repeatable": false}]'
           rows={7}
-          className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2.5 text-xs font-mono text-warm-800 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
+          className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2.5 text-xs font-mono text-warm-800 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
         />
       </div>
 
@@ -393,7 +393,7 @@ export function QuestImportModal({ skillId, skillName, onClose, onImported }: Qu
           </p>
           <div className="flex flex-wrap gap-2">
             {Object.entries(byLevel).sort(([a], [b]) => Number(a) - Number(b)).map(([level, count]) => (
-              <span key={level} className="text-xs text-warm-500 bg-white border border-warm-200 rounded px-2 py-0.5">
+              <span key={level} className="text-xs text-warm-500 bg-warm-50 dark:bg-warm-100 border border-warm-200 rounded px-2 py-0.5">
                 Level {level}: {count}
               </span>
             ))}
@@ -531,7 +531,7 @@ export function SkillImportModal({ onClose, onImported }: SkillImportProps) {
           onChange={(e) => { setText(e.target.value); setPreview(null); setError(""); }}
           placeholder='{"name": "Photography", "description": "...", "quests": [...], "resources": [...]}'
           rows={7}
-          className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2.5 text-xs font-mono text-warm-800 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
+          className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2.5 text-xs font-mono text-warm-800 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
         />
       </div>
 
