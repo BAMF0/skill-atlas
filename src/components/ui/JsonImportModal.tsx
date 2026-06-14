@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Modal from "./Modal";
-import { createQuest, createSkill, importSkillTemplate } from "../../lib/operations";
+import { createQuest, createSkill, createMaterial, importSkillTemplate } from "../../lib/operations";
 import { useSkillStore } from "../../store/useSkillStore";
 import type { CompleteQuestResult } from "../../types";
 import { SKILL_COLORS } from "../../types";
@@ -37,6 +37,14 @@ function validateQuests(raw: unknown): QuestJson[] {
 
 // ─── Skill import ────────────────────────────────────────────────────────────
 
+interface MaterialJson {
+  name: string;
+  category?: string;
+  notes?: string;
+  url?: string;
+  is_optional?: boolean;
+}
+
 interface SkillJson {
   name: string;
   description?: string;
@@ -52,6 +60,7 @@ interface SkillJson {
     author?: string;
     notes?: string;
   }[];
+  materials?: MaterialJson[];
 }
 
 function validateSkill(raw: unknown): SkillJson {
@@ -74,6 +83,20 @@ function validateSkill(raw: unknown): SkillJson {
         };
       })
     : [];
+  const materials = Array.isArray(s.materials)
+    ? (s.materials as unknown[]).map((m, i) => {
+        if (typeof m !== "object" || m === null) throw new Error(`Material ${i + 1} invalid`);
+        const mat = m as Record<string, unknown>;
+        if (typeof mat.name !== "string" || !mat.name.trim()) throw new Error(`Material ${i + 1} missing "name"`);
+        return {
+          name: String(mat.name).trim(),
+          category: mat.category ? String(mat.category).trim() : undefined,
+          notes: mat.notes ? String(mat.notes).trim() : undefined,
+          url: mat.url ? String(mat.url) : undefined,
+          is_optional: Boolean(mat.is_optional),
+        };
+      })
+    : [];
   return {
     name: String(s.name).trim(),
     description: s.description ? String(s.description).trim() : undefined,
@@ -83,6 +106,7 @@ function validateSkill(raw: unknown): SkillJson {
     color: typeof s.color === "string" && s.color.startsWith("#") ? s.color : SKILL_COLORS[0],
     quests,
     resources,
+    materials,
   };
 }
 
@@ -164,6 +188,15 @@ Use this exact schema:
 "category": "Category",
 "color": "#6B8EAD",
 "quests": [],
+"materials": [
+{
+"name": "Item name",
+"category": "equipment",
+"notes": "Optional context — what to look for, why it matters",
+"url": "Optional purchase or download link",
+"is_optional": false
+}
+],
 "resources": [
 {
 "title": "Resource title",
@@ -183,6 +216,11 @@ Requirements:
 * Make the roadmap specific to the skill rather than generic.
 * Ensure that Level 10 represents genuine mastery.
 * Keep level_roadmap detailed enough to guide future quest generation.
+* materials: list 5–15 concrete items a learner needs to practice this skill.
+  - Use category values: equipment · software · consumables · space · other
+  - Mark is_optional: true for nice-to-haves
+  - Be specific (e.g. "Classical guitar, nylon-string" not just "guitar")
+  - Include a brief notes field explaining what to look for or why it matters
 
 Level titles:
 
@@ -443,6 +481,9 @@ export function SkillImportModal({ onClose, onImported }: SkillImportProps) {
         quests: preview.quests ?? [],
         resources: (preview.resources ?? []) as any,
       });
+      for (const m of preview.materials ?? []) {
+        await createMaterial({ skill_id: id, ...m });
+      }
       useSkillStore.setState({ initialized: false });
       await useSkillStore.getState().loadSkills();
       onImported(id);
@@ -514,7 +555,7 @@ export function SkillImportModal({ onClose, onImported }: SkillImportProps) {
             {preview.category && <span className="text-xs text-warm-400">{preview.category}</span>}
           </div>
           <p className="text-xs text-warm-500">
-            {preview.quests?.length ?? 0} quests · {preview.resources?.length ?? 0} resources
+            {preview.quests?.length ?? 0} quests · {preview.resources?.length ?? 0} resources · {preview.materials?.length ?? 0} materials
           </p>
         </div>
       )}

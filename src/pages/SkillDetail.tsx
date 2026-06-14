@@ -1,12 +1,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import type { Skill, Quest, Resource, XpLogEntry, CompleteQuestResult } from "../types";
+import type { Skill, Quest, Resource, Material, XpLogEntry, CompleteQuestResult } from "../types";
 import {
   getSkill,
   getQuests,
   getResourcesForSkill,
+  getMaterialsForSkill,
   getXpLog,
   createResource,
+  createMaterial,
+  deleteMaterial,
   deleteSkill,
   updateSkill,
 } from "../lib/operations";
@@ -18,10 +21,10 @@ import QuestList from "../components/quest/QuestList";
 import ResourceLink from "../components/ui/ResourceLink";
 import Modal from "../components/ui/Modal";
 import { QuestImportModal } from "../components/ui/JsonImportModal";
-import { RESOURCE_TYPES, SKILL_COLORS } from "../types";
+import { RESOURCE_TYPES, SKILL_COLORS, MATERIAL_CATEGORIES } from "../types";
 import { xpToReachLevel, MAX_LEVEL, getLevelTitle } from "../lib/xpCurve";
 
-type Tab = "quests" | "resources" | "history";
+type Tab = "quests" | "materials" | "resources" | "history";
 
 export default function SkillDetail() {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +35,7 @@ export default function SkillDetail() {
   const [skill, setSkill] = useState<Skill | null>(null);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
   const [xpLog, setXpLog] = useState<XpLogEntry[]>([]);
   const [tab, setTab] = useState<Tab>("quests");
   const [loading, setLoading] = useState(true);
@@ -45,6 +49,11 @@ export default function SkillDetail() {
     title: "", author: "", type: "book", url: "", notes: "",
   });
   const [savingResource, setSavingResource] = useState(false);
+  const [showAddMaterial, setShowAddMaterial] = useState(false);
+  const [materialForm, setMaterialForm] = useState({
+    name: "", category: "equipment", notes: "", url: "", is_optional: false,
+  });
+  const [savingMaterial, setSavingMaterial] = useState(false);
 
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -55,16 +64,18 @@ export default function SkillDetail() {
 
   const loadAll = useCallback(async () => {
     if (!skillId) return;
-    const [s, qs, rs, log] = await Promise.all([
+    const [s, qs, rs, ms, log] = await Promise.all([
       getSkill(skillId),
       getQuests(skillId),
       getResourcesForSkill(skillId),
+      getMaterialsForSkill(skillId),
       getXpLog(skillId),
     ]);
     if (!s) { navigate("/"); return; }
     setSkill(s);
     setQuests(qs);
     setResources(rs);
+    setMaterials(ms);
     setXpLog(log);
     setLoading(false);
   }, [skillId, navigate]);
@@ -102,6 +113,27 @@ export default function SkillDetail() {
       setResources(rs);
     } finally {
       setSavingResource(false);
+    }
+  };
+
+  const handleAddMaterial = async () => {
+    if (!materialForm.name.trim()) return;
+    setSavingMaterial(true);
+    try {
+      await createMaterial({
+        skill_id: skillId,
+        name: materialForm.name.trim(),
+        category: materialForm.category || undefined,
+        notes: materialForm.notes.trim() || undefined,
+        url: materialForm.url.trim() || undefined,
+        is_optional: materialForm.is_optional,
+      });
+      setMaterialForm({ name: "", category: "equipment", notes: "", url: "", is_optional: false });
+      setShowAddMaterial(false);
+      const ms = await getMaterialsForSkill(skillId);
+      setMaterials(ms);
+    } finally {
+      setSavingMaterial(false);
     }
   };
 
@@ -233,22 +265,20 @@ export default function SkillDetail() {
                 >
                   Cancel
                 </button>
+                <button
+                  onClick={() => { setEditing(false); setDeleteInput(""); setShowDeleteConfirm(true); }}
+                  className="px-3 py-1.5 text-red-300 hover:text-red-500 text-xs font-medium transition-colors"
+                >
+                  Delete skill
+                </button>
               </>
             ) : (
-              <>
-                <button
-                  onClick={startEdit}
-                  className="px-3 py-1.5 bg-warm-100 hover:bg-warm-200 text-warm-600 rounded-lg text-xs font-medium transition-colors"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => { setDeleteInput(""); setShowDeleteConfirm(true); }}
-                  className="px-3 py-1.5 text-red-400 hover:text-red-600 text-xs font-medium transition-colors"
-                >
-                  Delete
-                </button>
-              </>
+              <button
+                onClick={startEdit}
+                className="px-3 py-1.5 bg-warm-100 hover:bg-warm-200 text-warm-600 rounded-lg text-xs font-medium transition-colors"
+              >
+                Edit
+              </button>
             )}
           </div>
         </div>
@@ -310,7 +340,7 @@ export default function SkillDetail() {
 
         {/* Tabs */}
         <div className="flex gap-0 -mb-px">
-          {(["quests", "resources", "history"] as Tab[]).map((t) => (
+          {(["quests", "materials", "resources", "history"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -350,6 +380,154 @@ export default function SkillDetail() {
             onQuestUnaccepted={() => getQuests(skillId).then(setQuests)}
           />
           </>
+        )}
+
+        {tab === "materials" && (
+          <div className="space-y-3">
+            {/* Required */}
+            {materials.filter((m) => !m.is_optional).length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-warm-400 uppercase tracking-widest mb-2">Required</p>
+                <div className="space-y-1.5">
+                  {materials.filter((m) => !m.is_optional).map((m) => (
+                    <div key={m.id} className="flex items-start gap-3 px-4 py-3 bg-white border border-warm-200 rounded-xl group">
+                      {m.category && (
+                        <span className="text-xs text-warm-400 bg-warm-50 border border-warm-100 rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5 capitalize">
+                          {m.category}
+                        </span>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        {m.url ? (
+                          <a href={m.url} target="_blank" rel="noopener noreferrer"
+                            className="text-sm text-warm-800 hover:text-warm-600 underline underline-offset-2">
+                            {m.name}
+                          </a>
+                        ) : (
+                          <p className="text-sm text-warm-800">{m.name}</p>
+                        )}
+                        {m.notes && <p className="text-xs text-warm-400 mt-0.5 italic">{m.notes}</p>}
+                      </div>
+                      <button
+                        onClick={async () => { await deleteMaterial(m.id); setMaterials(await getMaterialsForSkill(skillId)); }}
+                        className="opacity-0 group-hover:opacity-100 text-warm-300 hover:text-red-400 text-xs transition-opacity flex-shrink-0"
+                      >✕</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Optional */}
+            {materials.filter((m) => m.is_optional).length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-warm-400 uppercase tracking-widest mb-2 mt-4">Optional</p>
+                <div className="space-y-1.5">
+                  {materials.filter((m) => m.is_optional).map((m) => (
+                    <div key={m.id} className="flex items-start gap-3 px-4 py-3 bg-white border border-warm-100 rounded-xl opacity-75 group hover:opacity-100 transition-opacity">
+                      {m.category && (
+                        <span className="text-xs text-warm-300 bg-warm-50 border border-warm-100 rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5 capitalize">
+                          {m.category}
+                        </span>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        {m.url ? (
+                          <a href={m.url} target="_blank" rel="noopener noreferrer"
+                            className="text-sm text-warm-600 hover:text-warm-800 underline underline-offset-2">
+                            {m.name}
+                          </a>
+                        ) : (
+                          <p className="text-sm text-warm-600">{m.name}</p>
+                        )}
+                        {m.notes && <p className="text-xs text-warm-400 mt-0.5 italic">{m.notes}</p>}
+                      </div>
+                      <button
+                        onClick={async () => { await deleteMaterial(m.id); setMaterials(await getMaterialsForSkill(skillId)); }}
+                        className="opacity-0 group-hover:opacity-100 text-warm-300 hover:text-red-400 text-xs transition-opacity flex-shrink-0"
+                      >✕</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {materials.length === 0 && !showAddMaterial && (
+              <div className="text-center py-12">
+                <p className="font-serif text-warm-700 mb-1">No materials yet</p>
+                <p className="text-sm text-warm-400">Add what you need to get started with this skill.</p>
+              </div>
+            )}
+
+            {showAddMaterial ? (
+              <div className="border border-warm-200 rounded-xl p-4 bg-white space-y-3">
+                <h3 className="font-serif text-sm font-semibold text-warm-800">Add Material</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Name"
+                      value={materialForm.name}
+                      onChange={(e) => setMaterialForm((f) => ({ ...f, name: e.target.value }))}
+                      className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+                    />
+                  </div>
+                  <select
+                    value={materialForm.category}
+                    onChange={(e) => setMaterialForm((f) => ({ ...f, category: e.target.value }))}
+                    className="bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 focus:outline-none focus:border-warm-400"
+                  >
+                    {MATERIAL_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                    ))}
+                  </select>
+                  <label className="flex items-center gap-2 text-sm text-warm-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={materialForm.is_optional}
+                      onChange={(e) => setMaterialForm((f) => ({ ...f, is_optional: e.target.checked }))}
+                      className="rounded border-warm-300"
+                    />
+                    Optional
+                  </label>
+                  <div className="col-span-2">
+                    <input
+                      type="url"
+                      placeholder="URL (optional)"
+                      value={materialForm.url}
+                      onChange={(e) => setMaterialForm((f) => ({ ...f, url: e.target.value }))}
+                      className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <textarea
+                      placeholder="Notes (optional)"
+                      value={materialForm.notes}
+                      onChange={(e) => setMaterialForm((f) => ({ ...f, notes: e.target.value }))}
+                      rows={2}
+                      className="w-full bg-white border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setShowAddMaterial(false)} className="px-3 py-1.5 text-xs text-warm-500 hover:text-warm-700">Cancel</button>
+                  <button
+                    onClick={handleAddMaterial}
+                    disabled={savingMaterial || !materialForm.name.trim()}
+                    className="px-4 py-1.5 bg-warm-900 hover:bg-warm-800 disabled:opacity-40 text-warm-50 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    {savingMaterial ? "Adding…" : "Add"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAddMaterial(true)}
+                className="w-full py-3 text-sm text-warm-400 hover:text-warm-600 border border-dashed border-warm-200 hover:border-warm-300 rounded-xl transition-colors"
+              >
+                + Add Material
+              </button>
+            )}
+          </div>
         )}
 
         {tab === "resources" && (

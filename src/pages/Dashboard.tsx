@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSkillStore } from "../store/useSkillStore";
+import { useToastStore } from "../store/useToastStore";
 import SkillCard from "../components/skill/SkillCard";
-import { getActiveQuests } from "../lib/operations";
-import type { ActiveQuest } from "../types";
-import { getLevelTitle } from "../lib/xpCurve";
+import ActiveQuestCard from "../components/quest/ActiveQuestCard";
+import { getActiveQuests, getSkill } from "../lib/operations";
+import type { ActiveQuest, CompleteQuestResult } from "../types";
 
 export default function Dashboard() {
-  const { skills, isLoading, loadSkills } = useSkillStore();
+  const { skills, isLoading, loadSkills, upsertSkill } = useSkillStore();
+  const { addToast } = useToastStore();
   const navigate = useNavigate();
   const [activeQuests, setActiveQuests] = useState<ActiveQuest[]>([]);
 
@@ -15,6 +17,19 @@ export default function Dashboard() {
     loadSkills();
     getActiveQuests().then(setActiveQuests);
   }, [loadSkills]);
+
+  const refreshActive = () => getActiveQuests().then(setActiveQuests);
+
+  const handleCompleted = async (quest: ActiveQuest, result: CompleteQuestResult) => {
+    if (result.leveledUp) {
+      addToast(`Level Up! You reached ${result.newLevelTitle} (Level ${result.newLevel})`, "success");
+    } else {
+      addToast(`+${result.xpGained} XP earned`, "info");
+    }
+    const updated = await getSkill(quest.skill_id);
+    if (updated) upsertSkill(updated);
+    await refreshActive();
+  };
 
   if (isLoading) {
     return (
@@ -43,43 +58,45 @@ export default function Dashboard() {
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
-      {/* Active quests panel */}
-      {activeQuests.length > 0 && (
+      {/* In Progress */}
+      {activeQuests.length === 0 ? (
+        <p className="text-sm text-warm-400 mb-8">
+          Nothing in progress yet —{" "}
+          <button
+            onClick={() => navigate(`/skill/${skills[0].id}`)}
+            className="underline underline-offset-2 hover:text-warm-600 transition-colors"
+          >
+            open a skill
+          </button>{" "}
+          and accept a quest to get started.
+        </p>
+      ) : (
         <div className="mb-8">
-          <h2 className="font-serif text-lg font-semibold text-warm-900 mb-3">Active Quests</h2>
-          <div className="space-y-1.5">
+          <h2 className="font-serif text-lg font-semibold text-warm-900 mb-0.5">In Progress</h2>
+          <p className="text-sm text-warm-400 mb-3">
+            {activeQuests.length} quest{activeQuests.length !== 1 ? "s" : ""} active
+          </p>
+          <div className="space-y-2">
             {activeQuests.map((quest) => (
-              <button
+              <ActiveQuestCard
                 key={quest.id}
-                onClick={() => navigate(`/skill/${quest.skill_id}`)}
-                className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-warm-200 hover:border-warm-300 rounded-xl transition-colors text-left group"
-              >
-                <span
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: quest.skill_color }}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-warm-800 truncate">{quest.title}</p>
-                  <p className="text-xs text-warm-400 mt-0.5">
-                    Lvl {quest.level_num} {getLevelTitle(quest.level_num)} · {quest.skill_name}
-                  </p>
-                </div>
-                <span
-                  className="text-xs font-medium tabular-nums px-1.5 py-0.5 rounded flex-shrink-0"
-                  style={{ color: quest.skill_color, backgroundColor: quest.skill_color + "18" }}
-                >
-                  +{quest.xp_reward} XP
-                </span>
-              </button>
+                quest={quest}
+                onCompleted={(result) => handleCompleted(quest, result)}
+                onAbandoned={refreshActive}
+                onNavigate={(skillId) => navigate(`/skill/${skillId}`)}
+              />
             ))}
           </div>
         </div>
       )}
 
+      {/* Skills grid */}
       <div className="flex items-baseline justify-between mb-8">
         <div>
           <h1 className="font-serif text-2xl font-semibold text-warm-900">Your Skills</h1>
-          <p className="text-sm text-warm-400 mt-0.5">{skills.length} skill{skills.length !== 1 ? "s" : ""} in progress</p>
+          <p className="text-sm text-warm-400 mt-0.5">
+            {skills.length} skill{skills.length !== 1 ? "s" : ""} in progress
+          </p>
         </div>
         <button
           onClick={() => navigate("/skill/new")}

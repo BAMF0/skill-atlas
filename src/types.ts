@@ -41,6 +41,19 @@ export interface ActiveQuest extends Quest {
   skill_color: string;
 }
 
+export interface Material {
+  id: number;
+  skill_id: number;
+  name: string;
+  category: string | null;
+  notes: string | null;
+  url: string | null;
+  is_optional: number; // 0 | 1
+  created_at: string;
+}
+
+export const MATERIAL_CATEGORIES = ["equipment", "software", "consumables", "space", "other"] as const;
+
 export interface Resource {
   id: number;
   skill_id: number | null;

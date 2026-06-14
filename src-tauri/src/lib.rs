@@ -60,6 +60,12 @@ pub fn run() {
             sql: include_str!("../migrations/003_quest_active.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "skill_materials",
+            sql: include_str!("../migrations/004_skill_materials.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

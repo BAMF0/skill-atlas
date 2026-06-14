@@ -13,6 +13,7 @@ import type {
   Quest,
   ActiveQuest,
   Resource,
+  Material,
   XpLogEntry,
   CompleteQuestResult,
 } from "../types";
@@ -340,6 +341,37 @@ export async function createResource(data: {
 export async function deleteResource(id: number): Promise<void> {
   const db = await getDb();
   await db.execute("DELETE FROM resources WHERE id = ?", [id]);
+}
+
+// ─── Materials ─────────────────────────────────────────────────────────────
+
+export async function getMaterialsForSkill(skillId: number): Promise<Material[]> {
+  const db = await getDb();
+  return db.select<Material[]>(
+    "SELECT * FROM skill_materials WHERE skill_id = ? ORDER BY is_optional ASC, category ASC, name ASC",
+    [skillId]
+  );
+}
+
+export async function createMaterial(data: {
+  skill_id: number;
+  name: string;
+  category?: string;
+  notes?: string;
+  url?: string;
+  is_optional?: boolean;
+}): Promise<number> {
+  const db = await getDb();
+  const result = await db.execute(
+    "INSERT INTO skill_materials (skill_id, name, category, notes, url, is_optional) VALUES (?, ?, ?, ?, ?, ?)",
+    [data.skill_id, data.name, data.category ?? null, data.notes ?? null, data.url ?? null, data.is_optional ? 1 : 0]
+  );
+  return result.lastInsertId as number;
+}
+
+export async function deleteMaterial(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM skill_materials WHERE id = ?", [id]);
 }
 
 // ─── XP Log ────────────────────────────────────────────────────────────────
