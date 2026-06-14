@@ -40,6 +40,8 @@ function validateQuests(raw: unknown): QuestJson[] {
 interface SkillJson {
   name: string;
   description?: string;
+  short_description?: string;
+  level_roadmap?: string;
   category?: string;
   color?: string;
   quests?: QuestJson[];
@@ -75,6 +77,8 @@ function validateSkill(raw: unknown): SkillJson {
   return {
     name: String(s.name).trim(),
     description: s.description ? String(s.description).trim() : undefined,
+    short_description: s.short_description ? String(s.short_description).trim() : undefined,
+    level_roadmap: s.level_roadmap ? String(s.level_roadmap).trim() : undefined,
     category: s.category ? String(s.category).trim() : undefined,
     color: typeof s.color === "string" && s.color.startsWith("#") ? s.color : SKILL_COLORS[0],
     quests,
@@ -84,59 +88,122 @@ function validateSkill(raw: unknown): SkillJson {
 
 // ─── Prompts ──────────────────────────────────────────────────────────────────
 
-function questPrompt(skillName: string) {
+function questPrompt(skillName: string, levelRange: string) {
   return `Generate quests for a "${skillName}" skill in JSON format. Output only the JSON array, no explanation.
 
+You are generating quests for **levels ${levelRange} only**.
+
+Each quest should be aligned with the skill roadmap and difficulty expectations for those levels.
+
+Schema:
+
 [
-  {
-    "level_num": 1,
-    "title": "Quest title (required)",
-    "description": "Optional description",
-    "xp_reward": 50,
-    "is_repeatable": false
-  }
+{
+"level_num": 1,
+"title": "Quest title (required)",
+"description": "Optional description",
+"xp_reward": 50,
+"is_repeatable": false
+}
 ]
 
-Guidelines:
-- 8–15 quests spread across levels 1–5
-- Level 1: beginner tasks (xp_reward: 20–60)
-- Level 2–3: intermediate tasks (xp_reward: 50–100)
-- Level 4–5: advanced tasks (xp_reward: 80–150)
-- is_repeatable: true for habit/practice tasks ("Practice for 30 min")
-- is_repeatable: false for one-off milestones`;
+Rules:
+
+* Only generate quests for the specified level range: ${levelRange}
+* Do NOT include quests outside this range
+* Generate 20–40 quests per level band (depending on scope)
+* Mix of:
+
+  * practice tasks (repeatable)
+  * application tasks
+  * challenge tasks
+  * milestone tasks
+* Ensure progression within the band (easier → harder)
+
+XP guidance:
+
+* Level 1 (Novice): 20–60 XP
+* Level 2–3 (Beginner/Apprentice): 50–100 XP
+* Level 4–5 (Intermediate/Competent): 80–150 XP
+* Level 6–7 (Proficient/Advanced): 120–250 XP
+* Level 8–9 (Expert/Master): 200–500 XP
+* Level 10 (Grandmaster): 400–1000 XP (rare, high-impact milestones)
+
+is_repeatable rules:
+
+* true → habit, drill, practice, repetition-based skill building
+* false → projects, milestones, evaluations, one-time achievements
+
+Design rules:
+
+* Quests must match the skill progression defined in the roadmap
+* Avoid generic “practice X” unless it is clearly skill-relevant
+* Prefer real-world outputs, projects, or measurable outcomes
+* Higher levels should emphasize autonomy, complexity, and integration
+* Lower levels should emphasize fundamentals and repetition
+* Ensure quests feel meaningfully different from each other
+
+Output only valid JSON array.`;
 }
 
 function skillPrompt() {
   return `Generate a skill template in JSON format. Output only the JSON object, no explanation.
 
+Design the skill as a complete progression from Level 1 (Novice) to Level 10 (Grandmaster).
+
+Level 10 should represent genuine real-world proficiency. Depending on the skill, reaching Grandmaster may require months or years of practice.
+
+Do not generate any quests yet.
+
+Use this exact schema:
+
 {
-  "name": "Skill Name",
-  "description": "What this skill is about",
-  "category": "Category",
-  "color": "#6B8EAD",
-  "quests": [
-    {
-      "level_num": 1,
-      "title": "Quest title",
-      "description": "Optional description",
-      "xp_reward": 50,
-      "is_repeatable": false
-    }
-  ],
-  "resources": [
-    {
-      "title": "Resource title",
-      "type": "book",
-      "author": "Optional",
-      "url": "Optional URL",
-      "notes": "Optional notes"
-    }
-  ]
+"name": "Skill Name",
+"short_description": "One to two sentence overview of what the skill is and why it is valuable.",
+"level_roadmap": "Level 1 (Novice): Brief description of what a novice can do.\\nLevel 2 (Beginner): ...\\nLevel 3 (Apprentice): ...\\nLevel 4 (Intermediate): ...\\nLevel 5 (Competent): ...\\nLevel 6 (Proficient): ...\\nLevel 7 (Advanced): ...\\nLevel 8 (Expert): ...\\nLevel 9 (Master): ...\\nLevel 10 (Grandmaster): ...",
+"category": "Category",
+"color": "#6B8EAD",
+"quests": [],
+"resources": [
+{
+"title": "Resource title",
+"type": "book",
+"author": "Optional",
+"url": "Optional URL",
+"notes": "Optional notes"
+}
+]
 }
 
-Available colors (muted palette): #6B8EAD #7B9E8B #B07878 #B08840 #8B7B9E #A86B55 #708090 #8B8B5A #5F8A8B #8B5665
-Resource types: book · article · video · course · website
-Include 8–12 quests across levels 1–4 and 2–3 resources.`;
+Requirements:
+
+* short_description: 1–2 sentences — what the skill is and why it matters.
+* level_roadmap: cover all 10 levels, one line each, skill-specific (not generic). Each line starts with "Level N (Title): ...".
+* Do not generate any quests. Leave the quests array empty.
+* Make the roadmap specific to the skill rather than generic.
+* Ensure that Level 10 represents genuine mastery.
+* Keep level_roadmap detailed enough to guide future quest generation.
+
+Level titles:
+
+1. Novice
+2. Beginner
+3. Apprentice
+4. Intermediate
+5. Competent
+6. Proficient
+7. Advanced
+8. Expert
+9. Master
+10. Grandmaster
+
+Available colors (muted palette):
+#6B8EAD #7B9E8B #B07878 #B08840 #8B7B9E #A86B55 #708090 #8B8B5A #5F8A8B #8B5665
+
+Resource types:
+book · article · video · course · website
+
+Include 5–10 high-quality resources that collectively support progression from beginner to advanced.`;
 }
 
 // ─── Mode: Quest import ───────────────────────────────────────────────────────
@@ -154,8 +221,11 @@ export function QuestImportModal({ skillId, skillName, onClose, onImported }: Qu
   const [preview, setPreview] = useState<QuestJson[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [levelFrom, setLevelFrom] = useState(1);
+  const [levelTo, setLevelTo] = useState(10);
 
-  const prompt = questPrompt(skillName);
+  const levelRange = levelFrom === levelTo ? String(levelFrom) : `${levelFrom}–${levelTo}`;
+  const prompt = questPrompt(skillName, levelRange);
 
   const copyPrompt = async () => {
     await navigator.clipboard.writeText(prompt);
@@ -199,6 +269,40 @@ export function QuestImportModal({ skillId, skillName, onClose, onImported }: Qu
 
   return (
     <Modal isOpen onClose={onClose} title="Import Quests" maxWidth="max-w-xl">
+      {/* Level range picker */}
+      <div className="mb-4 flex items-center gap-3">
+        <p className="text-xs font-medium text-warm-500 uppercase tracking-widest">Level range</p>
+        <div className="flex items-center gap-2">
+          <select
+            value={levelFrom}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setLevelFrom(v);
+              if (v > levelTo) setLevelTo(v);
+            }}
+            className="bg-white border border-warm-200 rounded-lg px-2 py-1 text-xs text-warm-800 focus:outline-none focus:border-warm-400"
+          >
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+          <span className="text-xs text-warm-400">to</span>
+          <select
+            value={levelTo}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setLevelTo(v);
+              if (v < levelFrom) setLevelFrom(v);
+            }}
+            className="bg-white border border-warm-200 rounded-lg px-2 py-1 text-xs text-warm-800 focus:outline-none focus:border-warm-400"
+          >
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* LLM Prompt */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-2">
@@ -324,6 +428,8 @@ export function SkillImportModal({ onClose, onImported }: SkillImportProps) {
       const id = await createSkill({
         name: preview.name,
         description: preview.description,
+        short_description: preview.short_description,
+        level_roadmap: preview.level_roadmap,
         category: preview.category,
         color: preview.color ?? SKILL_COLORS[0],
       });

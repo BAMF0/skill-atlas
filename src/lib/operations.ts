@@ -11,6 +11,7 @@ import type {
   Skill,
   Level,
   Quest,
+  ActiveQuest,
   Resource,
   XpLogEntry,
   CompleteQuestResult,
@@ -32,21 +33,23 @@ export async function getSkill(id: number): Promise<Skill | null> {
 export async function createSkill(data: {
   name: string;
   description?: string;
+  short_description?: string;
+  level_roadmap?: string;
   category?: string;
   color: string;
   icon?: string;
 }): Promise<number> {
   const db = await getDb();
   const result = await db.execute(
-    "INSERT INTO skills (name, description, category, color, icon) VALUES (?, ?, ?, ?, ?)",
-    [data.name, data.description ?? null, data.category ?? null, data.color, data.icon ?? null]
+    "INSERT INTO skills (name, description, short_description, level_roadmap, category, color, icon) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [data.name, data.description ?? null, data.short_description ?? null, data.level_roadmap ?? null, data.category ?? null, data.color, data.icon ?? null]
   );
   return result.lastInsertId as number;
 }
 
 export async function updateSkill(
   id: number,
-  data: Partial<Pick<Skill, "name" | "description" | "category" | "color" | "icon">>
+  data: Partial<Pick<Skill, "name" | "description" | "short_description" | "level_roadmap" | "category" | "color" | "icon">>
 ): Promise<void> {
   const db = await getDb();
   const fields = Object.entries(data)
@@ -179,6 +182,27 @@ export async function deleteQuest(id: number): Promise<void> {
   await db.execute("DELETE FROM quests WHERE id = ?", [id]);
 }
 
+export async function acceptQuest(questId: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE quests SET is_active = 1 WHERE id = ?", [questId]);
+}
+
+export async function unacceptQuest(questId: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("UPDATE quests SET is_active = 0 WHERE id = ?", [questId]);
+}
+
+export async function getActiveQuests(): Promise<ActiveQuest[]> {
+  const db = await getDb();
+  return db.select<ActiveQuest[]>(
+    `SELECT q.*, s.name AS skill_name, s.color AS skill_color
+     FROM quests q
+     JOIN skills s ON s.id = q.skill_id
+     WHERE q.is_active = 1
+     ORDER BY s.name, q.level_num, q.sort_order`
+  );
+}
+
 export async function completeQuest(
   questId: number,
   notes?: string
@@ -217,6 +241,7 @@ export async function completeQuest(
     "UPDATE skills SET current_xp = ?, current_level = ? WHERE id = ?",
     [newXp, newLevel, quest.skill_id]
   );
+  await db.execute("UPDATE quests SET is_active = 0 WHERE id = ?", [questId]);
 
   return {
     xpGained: quest.xp_reward,

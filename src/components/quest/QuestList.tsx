@@ -12,6 +12,8 @@ interface QuestListProps {
   onQuestCompleted: (result: CompleteQuestResult) => void;
   onQuestDeleted: () => void;
   onQuestAdded: () => void;
+  onQuestAccepted?: () => void;
+  onQuestUnaccepted?: () => void;
 }
 
 export default function QuestList({
@@ -22,6 +24,8 @@ export default function QuestList({
   onQuestCompleted,
   onQuestDeleted,
   onQuestAdded,
+  onQuestAccepted,
+  onQuestUnaccepted,
 }: QuestListProps) {
   const [expandedLevels, setExpandedLevels] = useState<Set<number>>(
     new Set([currentLevel])
@@ -154,6 +158,8 @@ export default function QuestList({
                     skillColor={skillColor}
                     onCompleted={onQuestCompleted}
                     onDeleted={onQuestDeleted}
+                    onAccepted={onQuestAccepted}
+                    onUnaccepted={onQuestUnaccepted}
                   />
                 ))}
 

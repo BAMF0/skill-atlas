@@ -2,6 +2,8 @@ export interface Skill {
   id: number;
   name: string;
   description: string | null;
+  short_description: string | null;
+  level_roadmap: string | null;
   category: string | null;
   color: string;
   icon: string | null;
@@ -31,6 +33,12 @@ export interface Quest {
   created_at: string;
   is_completed?: number; // 0 | 1, derived
   completion_count?: number;
+  is_active?: number; // 0 | 1
+}
+
+export interface ActiveQuest extends Quest {
+  skill_name: string;
+  skill_color: string;
 }
 
 export interface Resource {

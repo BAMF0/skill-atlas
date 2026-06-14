@@ -16,7 +16,6 @@ import XpBar from "../components/skill/XpBar";
 import LevelBadge from "../components/skill/LevelBadge";
 import QuestList from "../components/quest/QuestList";
 import ResourceLink from "../components/ui/ResourceLink";
-import ConfettiEffect from "../components/ui/ConfettiEffect";
 import Modal from "../components/ui/Modal";
 import { QuestImportModal } from "../components/ui/JsonImportModal";
 import { RESOURCE_TYPES, SKILL_COLORS } from "../types";
@@ -35,10 +34,10 @@ export default function SkillDetail() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [xpLog, setXpLog] = useState<XpLogEntry[]>([]);
   const [tab, setTab] = useState<Tab>("quests");
-  const [confetti, setConfetti] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [showImportQuests, setShowImportQuests] = useState(false);
+  const [showRoadmap, setShowRoadmap] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
   const [showAddResource, setShowAddResource] = useState(false);
@@ -49,7 +48,7 @@ export default function SkillDetail() {
 
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({
-    name: "", description: "", category: "", color: "", icon: "",
+    name: "", description: "", short_description: "", level_roadmap: "", category: "", color: "", icon: "",
   });
 
   const skillId = parseInt(id ?? "0");
@@ -74,9 +73,7 @@ export default function SkillDetail() {
 
   const handleQuestCompleted = async (result: CompleteQuestResult) => {
     if (result.leveledUp) {
-      setConfetti(true);
       addToast(`Level Up! You reached ${result.newLevelTitle} (Level ${result.newLevel})`, "success");
-      setTimeout(() => setConfetti(false), 100);
     } else {
       addToast(`+${result.xpGained} XP earned`, "info");
     }
@@ -120,6 +117,8 @@ export default function SkillDetail() {
     setEditForm({
       name: skill.name,
       description: skill.description ?? "",
+      short_description: skill.short_description ?? "",
+      level_roadmap: skill.level_roadmap ?? "",
       category: skill.category ?? "",
       color: skill.color,
       icon: skill.icon ?? "",
@@ -132,6 +131,8 @@ export default function SkillDetail() {
     await updateSkill(skill.id, {
       name: editForm.name.trim(),
       description: editForm.description.trim() || undefined,
+      short_description: editForm.short_description.trim() || undefined,
+      level_roadmap: editForm.level_roadmap.trim() || undefined,
       category: editForm.category.trim() || undefined,
       color: editForm.color,
       icon: editForm.icon.trim() || undefined,
@@ -155,8 +156,6 @@ export default function SkillDetail() {
 
   return (
     <div className="flex flex-col h-full">
-      <ConfettiEffect trigger={confetti} />
-
       {/* Header */}
       <div className="bg-white border-b border-warm-200 px-8 pt-7 pb-0 flex-shrink-0">
         <div className="flex items-start justify-between gap-4 mb-4">
@@ -254,17 +253,45 @@ export default function SkillDetail() {
           </div>
         </div>
 
-        {editing && (
-          <textarea
-            value={editForm.description}
-            onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
-            placeholder="Description (optional)"
-            rows={2}
-            className="mb-3 w-full bg-warm-50 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
-          />
-        )}
-        {!editing && skill.description && (
-          <p className="text-sm text-warm-500 mb-3 leading-relaxed">{skill.description}</p>
+        {editing ? (
+          <div className="mb-3 space-y-2">
+            <textarea
+              value={editForm.short_description}
+              onChange={(e) => setEditForm((f) => ({ ...f, short_description: e.target.value }))}
+              placeholder="Short description (1–2 sentences)"
+              rows={2}
+              className="w-full bg-warm-50 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
+            />
+            <textarea
+              value={editForm.level_roadmap}
+              onChange={(e) => setEditForm((f) => ({ ...f, level_roadmap: e.target.value }))}
+              placeholder="Level roadmap (levels 1–10)"
+              rows={5}
+              className="w-full bg-warm-50 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-800 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
+            />
+          </div>
+        ) : (
+          <>
+            {(skill.short_description || skill.description) && (
+              <p className="text-sm text-warm-500 mb-3 leading-relaxed">
+                {skill.short_description ?? skill.description}
+              </p>
+            )}
+            {skill.level_roadmap && (
+              <div className="mb-3 bg-warm-50 border border-warm-100 rounded-lg px-4 py-3">
+                <button
+                  onClick={() => setShowRoadmap((v) => !v)}
+                  className="flex items-center gap-2 w-full text-left"
+                >
+                  <p className="text-xs font-medium text-warm-400 uppercase tracking-widest">Level Roadmap</p>
+                  <span className="text-xs text-warm-300 ml-auto">{showRoadmap ? "▲" : "▼"}</span>
+                </button>
+                {showRoadmap && (
+                  <p className="text-xs text-warm-500 leading-relaxed whitespace-pre-line mt-2">{skill.level_roadmap}</p>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* Level + XP */}
@@ -319,6 +346,8 @@ export default function SkillDetail() {
             onQuestCompleted={handleQuestCompleted}
             onQuestDeleted={() => getQuests(skillId).then(setQuests)}
             onQuestAdded={() => getQuests(skillId).then(setQuests)}
+            onQuestAccepted={() => getQuests(skillId).then(setQuests)}
+            onQuestUnaccepted={() => getQuests(skillId).then(setQuests)}
           />
           </>
         )}
