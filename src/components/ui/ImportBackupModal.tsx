@@ -22,6 +22,7 @@ export default function ImportBackupModal({ isOpen, backup, onClose }: Props) {
   const skillCount = backup.skills.length;
   const questCount = backup.skills.reduce((n, s) => n + s.quests.length, 0);
   const resourceCount = backup.skills.reduce((n, s) => n + s.resources.length, 0);
+  const materialCount = backup.skills.reduce((n, s) => n + (s.materials?.length ?? 0), 0);
   const exportDate = new Date(backup.exportedAt).toLocaleDateString(undefined, {
     year: "numeric",
     month: "long",
@@ -54,6 +55,9 @@ export default function ImportBackupModal({ isOpen, backup, onClose }: Props) {
             {skillCount} skill{skillCount !== 1 ? "s" : ""} &middot;{" "}
             {questCount} quest{questCount !== 1 ? "s" : ""} &middot;{" "}
             {resourceCount} resource{resourceCount !== 1 ? "s" : ""}
+            {materialCount > 0 && (
+              <> &middot; {materialCount} material{materialCount !== 1 ? "s" : ""}</>
+            )}
           </p>
         </div>
 

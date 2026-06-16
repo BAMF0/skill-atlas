@@ -7,6 +7,7 @@ import {
   getResourcesForSkill,
   getMaterialsForSkill,
   getXpLog,
+  getLastCompletionPerQuest,
   createResource,
   createMaterial,
   deleteMaterial,
@@ -21,6 +22,7 @@ import QuestList from "../components/quest/QuestList";
 import ResourceLink from "../components/ui/ResourceLink";
 import Modal from "../components/ui/Modal";
 import { QuestImportModal } from "../components/ui/JsonImportModal";
+import QuestDeck from "../components/quest/QuestDeck";
 import { RESOURCE_TYPES, SKILL_COLORS, MATERIAL_CATEGORIES } from "../types";
 import { xpToReachLevel, MAX_LEVEL, getLevelTitle } from "../lib/xpCurve";
 
@@ -37,6 +39,7 @@ export default function SkillDetail() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [xpLog, setXpLog] = useState<XpLogEntry[]>([]);
+  const [lastCompletion, setLastCompletion] = useState<Record<number, string>>({});
   const [tab, setTab] = useState<Tab>("quests");
   const [loading, setLoading] = useState(true);
 
@@ -64,12 +67,13 @@ export default function SkillDetail() {
 
   const loadAll = useCallback(async () => {
     if (!skillId) return;
-    const [s, qs, rs, ms, log] = await Promise.all([
+    const [s, qs, rs, ms, log, lc] = await Promise.all([
       getSkill(skillId),
       getQuests(skillId),
       getResourcesForSkill(skillId),
       getMaterialsForSkill(skillId),
       getXpLog(skillId),
+      getLastCompletionPerQuest(skillId),
     ]);
     if (!s) { navigate("/"); return; }
     setSkill(s);
@@ -77,6 +81,7 @@ export default function SkillDetail() {
     setResources(rs);
     setMaterials(ms);
     setXpLog(log);
+    setLastCompletion(lc);
     setLoading(false);
   }, [skillId, navigate]);
 
@@ -189,8 +194,8 @@ export default function SkillDetail() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="bg-white dark:bg-warm-200 border-b border-warm-200 px-4 md:px-8 pt-5 md:pt-7 pb-0 flex-shrink-0">
-        <div className="flex items-start justify-between gap-4 mb-4">
+      <div className="bg-white dark:bg-warm-200 border-b border-warm-200 px-4 md:px-8 pt-4 md:pt-5 pb-0 flex-shrink-0">
+        <div className="flex items-start justify-between gap-4 mb-2.5">
           <div className="flex items-start gap-3 min-w-0">
             {editing ? (
               <input
@@ -237,6 +242,7 @@ export default function SkillDetail() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap justify-end">
+            {!editing && <LevelBadge level={skill.current_level} size="md" />}
             {editing ? (
               <>
                 <div className="flex gap-1.5">
@@ -303,12 +309,12 @@ export default function SkillDetail() {
         ) : (
           <>
             {(skill.short_description || skill.description) && (
-              <p className="text-sm text-warm-500 mb-3 leading-relaxed">
+              <p className="text-sm text-warm-500 mb-2 leading-relaxed">
                 {skill.short_description ?? skill.description}
               </p>
             )}
             {skill.level_roadmap && (
-              <div className="mb-3 bg-warm-50 border border-warm-100 rounded-lg px-4 py-3">
+              <div className="mb-2 bg-warm-50 border border-warm-100 rounded-lg px-4 py-3">
                 <button
                   onClick={() => setShowRoadmap((v) => !v)}
                   className="flex items-center gap-2 w-full text-left"
@@ -324,9 +330,8 @@ export default function SkillDetail() {
           </>
         )}
 
-        {/* Level + XP */}
-        <div className="flex items-center gap-3 mb-3">
-          <LevelBadge level={skill.current_level} size="md" />
+        {/* XP info + bar */}
+        <div className="flex items-center gap-2 mb-2">
           <span className="text-xs text-warm-400 tabular-nums">{skill.current_xp.toLocaleString()} XP</span>
           {nextLevelXp && (
             <span className="text-xs text-warm-300">
@@ -334,7 +339,7 @@ export default function SkillDetail() {
             </span>
           )}
         </div>
-        <div className="pb-4">
+        <div className="pb-3">
           <XpBar currentXp={skill.current_xp} color={skill.color} showLabel={false} />
         </div>
 
@@ -360,7 +365,36 @@ export default function SkillDetail() {
       <div className="flex-1 overflow-y-auto p-4 md:p-8">
         {tab === "quests" && (
           <>
-            <div className="flex justify-end mb-4">
+            <QuestDeck
+              quests={quests}
+              skillColor={skill.color}
+              currentLevel={skill.current_level}
+              lastCompletion={lastCompletion}
+              onAccepted={() => getQuests(skillId).then(setQuests)}
+            />
+
+            <details className="mt-6 group">
+              <summary className="text-xs text-warm-400 hover:text-warm-600 cursor-pointer list-none flex items-center gap-1 select-none">
+                <span className="group-open:hidden">▸</span>
+                <span className="hidden group-open:inline">▾</span>
+                All quests
+              </summary>
+              <div className="mt-3">
+                <QuestList
+                  quests={quests}
+                  skillId={skillId}
+                  skillColor={skill.color}
+                  currentLevel={skill.current_level}
+                  onQuestCompleted={handleQuestCompleted}
+                  onQuestDeleted={() => getQuests(skillId).then(setQuests)}
+                  onQuestAdded={() => getQuests(skillId).then(setQuests)}
+                  onQuestAccepted={() => getQuests(skillId).then(setQuests)}
+                  onQuestUnaccepted={() => getQuests(skillId).then(setQuests)}
+                />
+              </div>
+            </details>
+
+            <div className="flex justify-end mt-4">
               <button
                 onClick={() => setShowImportQuests(true)}
                 className="text-xs text-warm-400 hover:text-warm-700 transition-colors"
@@ -368,17 +402,6 @@ export default function SkillDetail() {
                 Import from JSON
               </button>
             </div>
-          <QuestList
-            quests={quests}
-            skillId={skillId}
-            skillColor={skill.color}
-            currentLevel={skill.current_level}
-            onQuestCompleted={handleQuestCompleted}
-            onQuestDeleted={() => getQuests(skillId).then(setQuests)}
-            onQuestAdded={() => getQuests(skillId).then(setQuests)}
-            onQuestAccepted={() => getQuests(skillId).then(setQuests)}
-            onQuestUnaccepted={() => getQuests(skillId).then(setQuests)}
-          />
           </>
         )}
 

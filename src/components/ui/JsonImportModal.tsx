@@ -1,9 +1,64 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Modal from "./Modal";
 import { createQuest, createSkill, createMaterial, importSkillTemplate } from "../../lib/operations";
 import { useSkillStore } from "../../store/useSkillStore";
+import { useSettingsStore } from "../../store/useSettingsStore";
+import { generateViaOllama, ollamaStatus } from "../../lib/system";
 import type { CompleteQuestResult } from "../../types";
 import { SKILL_COLORS } from "../../types";
+
+// ─── JSON extraction ───────────────────────────────────────────────────────
+// LLM answers rarely arrive as clean JSON — they're wrapped in ```json fences
+// or surrounded by prose. Strip/extract so the user never has to hand-clean it.
+
+function extractFirstJsonBlock(text: string): string | null {
+  const objAt = text.indexOf("{");
+  const arrAt = text.indexOf("[");
+  const start =
+    objAt === -1 ? arrAt : arrAt === -1 ? objAt : Math.min(objAt, arrAt);
+  if (start === -1) return null;
+  const open = text[start];
+  const close = open === "{" ? "}" : "]";
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === open) depth++;
+    else if (c === close) {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+export function extractJson(raw: string): unknown {
+  const text = raw.trim();
+  const candidates: string[] = [text];
+
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) candidates.push(fence[1].trim());
+
+  const block = extractFirstJsonBlock(text);
+  if (block) candidates.push(block);
+
+  for (const c of candidates) {
+    try {
+      return JSON.parse(c);
+    } catch {
+      // try next candidate
+    }
+  }
+  throw new Error("Couldn't find valid JSON — paste the model's full answer");
+}
 
 // ─── Quest import ────────────────────────────────────────────────────────────
 
@@ -170,10 +225,12 @@ Design rules:
 Output only valid JSON array.`;
 }
 
-function skillPrompt() {
-  return `Generate a skill template in JSON format. Output only the JSON object, no explanation.
+function skillPrompt(skillName?: string) {
+  const named = skillName?.trim();
+  const subject = named ? `the skill "${named}"` : "a skill";
+  return `Generate a skill template in JSON format${named ? ` for ${subject}` : ""}. Output only the JSON object, no explanation.
 
-Design the skill as a complete progression from Level 1 (Novice) to Level 10 (Grandmaster).
+Design ${subject} as a complete progression from Level 1 (Novice) to Level 10 (Grandmaster).${named ? `\n\nUse "${named}" as the skill name.` : ""}
 
 Level 10 should represent genuine real-world proficiency. Depending on the skill, reaching Grandmaster may require months or years of practice.
 
@@ -244,6 +301,71 @@ book · article · video · course · website
 Include 5–10 high-quality resources that collectively support progression from beginner to advanced.`;
 }
 
+// ─── Shared: collapsible prompt + copy + optional local generation ───────────
+
+function PromptSection({
+  prompt,
+  onGenerate,
+  generating,
+}: {
+  prompt: string;
+  onGenerate?: () => void;
+  generating?: boolean;
+}) {
+  const { ollamaEnabled, ollamaModel } = useSettingsStore();
+  const [ollamaReady, setOllamaReady] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (ollamaEnabled) ollamaStatus().then((ok) => active && setOllamaReady(ok));
+    else setOllamaReady(false);
+    return () => {
+      active = false;
+    };
+  }, [ollamaEnabled]);
+
+  const copyPrompt = async () => {
+    await navigator.clipboard.writeText(prompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="mb-5">
+      <div className="flex items-center gap-3 mb-2">
+        <p className="text-xs font-medium text-warm-500 uppercase tracking-widest">Prompt</p>
+        <div className="ml-auto flex items-center gap-3">
+          {ollamaEnabled && ollamaReady && onGenerate && (
+            <button
+              onClick={onGenerate}
+              disabled={generating}
+              className="text-xs font-medium text-warm-700 hover:text-warm-900 disabled:opacity-50 transition-colors"
+            >
+              {generating ? "Generating…" : `Generate with ${ollamaModel}`}
+            </button>
+          )}
+          <button
+            onClick={copyPrompt}
+            className="text-xs text-warm-500 hover:text-warm-800 transition-colors"
+          >
+            {copied ? "Copied" : "Copy prompt"}
+          </button>
+        </div>
+      </div>
+      <details className="group">
+        <summary className="text-xs text-warm-400 hover:text-warm-600 cursor-pointer list-none flex items-center gap-1 select-none">
+          <span className="group-open:hidden">▸ Show full prompt</span>
+          <span className="hidden group-open:inline">▾ Hide prompt</span>
+        </summary>
+        <pre className="mt-2 text-xs text-warm-500 bg-warm-50 border border-warm-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
+          {prompt}
+        </pre>
+      </details>
+    </div>
+  );
+}
+
 // ─── Mode: Quest import ───────────────────────────────────────────────────────
 
 interface QuestImportProps {
@@ -254,31 +376,58 @@ interface QuestImportProps {
 }
 
 export function QuestImportModal({ skillId, skillName, onClose, onImported }: QuestImportProps) {
+  const { ollamaModel } = useSettingsStore();
   const [text, setText] = useState("");
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<QuestJson[] | null>(null);
   const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [levelFrom, setLevelFrom] = useState(1);
   const [levelTo, setLevelTo] = useState(10);
 
   const levelRange = levelFrom === levelTo ? String(levelFrom) : `${levelFrom}–${levelTo}`;
   const prompt = questPrompt(skillName, levelRange);
 
-  const copyPrompt = async () => {
-    await navigator.clipboard.writeText(prompt);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setError("");
+    try {
+      // Filling the textarea triggers the same auto-validate path as a paste.
+      setText(await generateViaOllama(prompt, ollamaModel));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Local generation failed");
+    } finally {
+      setGenerating(false);
+    }
   };
 
-  const parseJson = () => {
-    setError("");
-    setPreview(null);
+  const parseJson = useCallback(() => {
+    if (!text.trim()) {
+      setPreview(null);
+      setError("");
+      return;
+    }
     try {
-      const parsed = validateQuests(JSON.parse(text));
-      setPreview(parsed);
+      setPreview(validateQuests(extractJson(text)));
+      setError("");
     } catch (e) {
+      setPreview(null);
       setError(e instanceof Error ? e.message : "Invalid JSON");
+    }
+  }, [text]);
+
+  // Auto-validate (debounced) as the user pastes — no manual Validate click needed.
+  useEffect(() => {
+    const t = setTimeout(parseJson, 400);
+    return () => clearTimeout(t);
+  }, [parseJson]);
+
+  const pasteFromClipboard = async () => {
+    try {
+      const clip = await navigator.clipboard.readText();
+      if (clip) setText(clip);
+    } catch {
+      setError("Couldn't read clipboard — paste manually with Ctrl+V");
     }
   };
 
@@ -306,7 +455,7 @@ export function QuestImportModal({ skillId, skillName, onClose, onImported }: Qu
     : null;
 
   return (
-    <Modal isOpen onClose={onClose} title="Import Quests" maxWidth="max-w-xl">
+    <Modal isOpen onClose={onClose} title="Import Quests" maxWidth="max-w-lg">
       {/* Level range picker */}
       <div className="mb-4 flex items-center gap-3">
         <p className="text-xs font-medium text-warm-500 uppercase tracking-widest">Level range</p>
@@ -341,39 +490,23 @@ export function QuestImportModal({ skillId, skillName, onClose, onImported }: Qu
         </div>
       </div>
 
-      {/* LLM Prompt */}
-      <div className="mb-5">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-medium text-warm-500 uppercase tracking-widest">LLM Prompt</p>
-          <button
-            onClick={copyPrompt}
-            className="text-xs text-warm-500 hover:text-warm-800 transition-colors"
-          >
-            {copied ? "Copied" : "Copy"}
-          </button>
-        </div>
-        <pre className="text-xs text-warm-500 bg-warm-50 border border-warm-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed">
-          {prompt}
-        </pre>
-      </div>
+      <PromptSection prompt={prompt} onGenerate={handleGenerate} generating={generating} />
 
       {/* JSON input */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-medium text-warm-500 uppercase tracking-widest">Paste JSON</p>
-          {text.trim() && (
-            <button
-              onClick={parseJson}
-              className="text-xs text-warm-600 hover:text-warm-900 font-medium transition-colors"
-            >
-              Validate →
-            </button>
-          )}
+          <p className="text-xs font-medium text-warm-500 uppercase tracking-widest">Paste the answer</p>
+          <button
+            onClick={pasteFromClipboard}
+            className="text-xs text-warm-600 hover:text-warm-900 font-medium transition-colors"
+          >
+            Paste from clipboard
+          </button>
         </div>
         <textarea
           value={text}
-          onChange={(e) => { setText(e.target.value); setPreview(null); setError(""); }}
-          placeholder='[{"level_num": 1, "title": "...", "xp_reward": 50, "is_repeatable": false}]'
+          onChange={(e) => setText(e.target.value)}
+          placeholder='Paste the model’s answer — ```json fences and surrounding text are fine'
           rows={7}
           className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2.5 text-xs font-mono text-warm-800 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
         />
@@ -435,27 +568,56 @@ interface SkillImportProps {
 }
 
 export function SkillImportModal({ onClose, onImported }: SkillImportProps) {
+  const { ollamaModel } = useSettingsStore();
+  const [skillName, setSkillName] = useState("");
   const [text, setText] = useState("");
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<SkillJson | null>(null);
   const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
-  const prompt = skillPrompt();
+  const prompt = skillPrompt(skillName);
 
-  const copyPrompt = async () => {
-    await navigator.clipboard.writeText(prompt);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setError("");
+    try {
+      // Filling the textarea triggers the same auto-validate path as a paste.
+      setText(await generateViaOllama(prompt, ollamaModel));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Local generation failed");
+    } finally {
+      setGenerating(false);
+    }
   };
 
-  const parseJson = () => {
-    setError("");
-    setPreview(null);
+  const parseJson = useCallback(() => {
+    if (!text.trim()) {
+      setPreview(null);
+      setError("");
+      return;
+    }
     try {
-      setPreview(validateSkill(JSON.parse(text)));
+      setPreview(validateSkill(extractJson(text)));
+      setError("");
     } catch (e) {
+      setPreview(null);
       setError(e instanceof Error ? e.message : "Invalid JSON");
+    }
+  }, [text]);
+
+  // Auto-validate (debounced) as the user pastes — no manual Validate click needed.
+  useEffect(() => {
+    const t = setTimeout(parseJson, 400);
+    return () => clearTimeout(t);
+  }, [parseJson]);
+
+  const pasteFromClipboard = async () => {
+    try {
+      const clip = await navigator.clipboard.readText();
+      if (clip) setText(clip);
+    } catch {
+      setError("Couldn't read clipboard — paste manually with Ctrl+V");
     }
   };
 
@@ -496,40 +658,38 @@ export function SkillImportModal({ onClose, onImported }: SkillImportProps) {
   };
 
   return (
-    <Modal isOpen onClose={onClose} title="Import Skill from JSON" maxWidth="max-w-xl">
-      {/* LLM Prompt */}
-      <div className="mb-5">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-medium text-warm-500 uppercase tracking-widest">LLM Prompt</p>
-          <button
-            onClick={copyPrompt}
-            className="text-xs text-warm-500 hover:text-warm-800 transition-colors"
-          >
-            {copied ? "Copied" : "Copy"}
-          </button>
-        </div>
-        <pre className="text-xs text-warm-500 bg-warm-50 border border-warm-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed">
-          {prompt}
-        </pre>
+    <Modal isOpen onClose={onClose} title="Import Skill from JSON" maxWidth="max-w-lg">
+      {/* Skill name — tailors the prompt to a specific skill */}
+      <div className="mb-4">
+        <label className="block text-xs font-medium text-warm-500 uppercase tracking-widest mb-1.5">
+          Skill name <span className="normal-case text-warm-300">(optional)</span>
+        </label>
+        <input
+          type="text"
+          value={skillName}
+          onChange={(e) => setSkillName(e.target.value)}
+          placeholder="e.g. Watercolor painting — leave blank for a generic prompt"
+          className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+        />
       </div>
+
+      <PromptSection prompt={prompt} onGenerate={handleGenerate} generating={generating} />
 
       {/* JSON input */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-medium text-warm-500 uppercase tracking-widest">Paste JSON</p>
-          {text.trim() && (
-            <button
-              onClick={parseJson}
-              className="text-xs text-warm-600 hover:text-warm-900 font-medium transition-colors"
-            >
-              Validate →
-            </button>
-          )}
+          <p className="text-xs font-medium text-warm-500 uppercase tracking-widest">Paste the answer</p>
+          <button
+            onClick={pasteFromClipboard}
+            className="text-xs text-warm-600 hover:text-warm-900 font-medium transition-colors"
+          >
+            Paste from clipboard
+          </button>
         </div>
         <textarea
           value={text}
-          onChange={(e) => { setText(e.target.value); setPreview(null); setError(""); }}
-          placeholder='{"name": "Photography", "description": "...", "quests": [...], "resources": [...]}'
+          onChange={(e) => setText(e.target.value)}
+          placeholder='Paste the model’s answer — ```json fences and surrounding text are fine'
           rows={7}
           className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2.5 text-xs font-mono text-warm-800 placeholder-warm-300 focus:outline-none focus:border-warm-400 resize-none"
         />

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createSkill, importSkillTemplate } from "../lib/operations";
+import { createSkill, importSkillTemplate, createMaterial } from "../lib/operations";
 import { useSkillStore } from "../store/useSkillStore";
 import { SKILL_COLORS } from "../types";
-import { SKILL_LIBRARY, type SkillTemplate } from "../data/skillLibrary";
+import type { SkillTemplate } from "../data/skillLibrary";
 import { SkillImportModal } from "../components/ui/JsonImportModal";
+import LibraryBrowser from "../components/ui/LibraryBrowser";
+import type { SkillModule } from "../lib/library";
 
 type Step = "library" | "customize";
 
@@ -13,6 +15,7 @@ export default function NewSkill() {
 
   const [step, setStep] = useState<Step>("library");
   const [showJsonImport, setShowJsonImport] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<SkillTemplate | null>(null);
   const [importQuests, setImportQuests] = useState(true);
   const [importResources, setImportResources] = useState(true);
@@ -26,6 +29,10 @@ export default function NewSkill() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const pickModule = (module: SkillModule) => {
+    pickTemplate(module as unknown as SkillTemplate);
+  };
 
   const pickTemplate = (template: SkillTemplate) => {
     setSelectedTemplate(template);
@@ -51,16 +58,26 @@ export default function NewSkill() {
     setSaving(true);
     setError("");
     try {
+      const t = selectedTemplate as (SkillTemplate & { short_description?: string; level_roadmap?: string; materials?: { name: string; category?: string; notes?: string; url?: string; is_optional?: boolean }[] }) | null;
+
       const id = await createSkill({
         name: form.name.trim(),
         description: form.description.trim() || undefined,
         category: form.category.trim() || undefined,
         color: form.color,
         icon: form.icon.trim() || undefined,
+        short_description: t?.short_description || undefined,
+        level_roadmap: t?.level_roadmap || undefined,
       });
 
       if (selectedTemplate) {
         await importSkillTemplate(id, selectedTemplate, { importQuests, importResources });
+      }
+
+      if (t?.materials?.length) {
+        for (const m of t.materials) {
+          await createMaterial({ skill_id: id, ...m });
+        }
       }
 
       // Reset initialized so loadSkills fetches fresh data
@@ -89,49 +106,34 @@ export default function NewSkill() {
           </button>
           <div>
             <h1 className="font-serif text-2xl font-semibold text-warm-900">Add a Skill</h1>
-            <p className="text-sm text-warm-400 mt-0.5">Choose from our library or start blank</p>
+            <p className="text-sm text-warm-400 mt-0.5">Start from the library or build your own</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
-          {SKILL_LIBRARY.map((template) => (
-            <button
-              key={template.id}
-              onClick={() => pickTemplate(template)}
-              className="text-left p-4 bg-white dark:bg-warm-200 border border-warm-200 hover:border-warm-300 hover:shadow-sm rounded-xl transition-all group"
-            >
-              <div className="flex items-center gap-2.5 mb-2">
-                <span
-                  className="w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold text-white flex-shrink-0"
-                  style={{ backgroundColor: template.color }}
-                >
-                  {template.name.charAt(0)}
-                </span>
-                <span className="font-serif text-sm font-semibold text-warm-900 group-hover:text-warm-700">
-                  {template.name}
-                </span>
-              </div>
-              <p className="text-xs text-warm-500 line-clamp-2 leading-relaxed">{template.description}</p>
-              <div className="flex items-center justify-between mt-3">
-                <span className="text-xs text-warm-300">{template.category}</span>
-                <span className="text-xs text-warm-300">{template.quests.length} quests</span>
-              </div>
-            </button>
-          ))}
-        </div>
+        <button
+          onClick={() => setShowLibrary(true)}
+          className="w-full py-5 mb-3 bg-white dark:bg-warm-200 border border-warm-200 hover:border-warm-300 hover:shadow-sm rounded-xl transition-all text-left px-5 group"
+        >
+          <p className="font-serif text-sm font-semibold text-warm-900 group-hover:text-warm-700 mb-1">
+            Browse Skill Library
+          </p>
+          <p className="text-xs text-warm-400">
+            Choose from built-in skills or install modules from a remote registry.
+          </p>
+        </button>
 
         <div className="flex gap-3">
           <button
             onClick={pickBlank}
             className="flex-1 py-3 border border-dashed border-warm-300 hover:border-warm-400 rounded-xl text-sm text-warm-500 hover:text-warm-700 transition-colors"
           >
-            Start blank →
+            Start blank
           </button>
           <button
             onClick={() => setShowJsonImport(true)}
             className="flex-1 py-3 border border-dashed border-warm-300 hover:border-warm-400 rounded-xl text-sm text-warm-500 hover:text-warm-700 transition-colors"
           >
-            Import from JSON →
+            Import from JSON
           </button>
         </div>
       </div>
@@ -142,6 +144,12 @@ export default function NewSkill() {
           onImported={(id) => navigate(`/skill/${id}`)}
         />
       )}
+
+      <LibraryBrowser
+        isOpen={showLibrary}
+        onClose={() => setShowLibrary(false)}
+        onSelectModule={pickModule}
+      />
       </>
     );
   }

@@ -18,6 +18,27 @@ import type {
   CompleteQuestResult,
 } from "../types";
 
+// ─── XP recompute ────────────────────────────────────────────────────────────
+
+// xp_log is the single source of truth for a skill's XP. Recompute current_xp
+// and current_level from the log so edits/undos can never drift.
+async function recomputeSkillXp(
+  db: Awaited<ReturnType<typeof getDb>>,
+  skillId: number
+): Promise<{ newXp: number; newLevel: number }> {
+  const rows = await db.select<{ total: number }[]>(
+    "SELECT COALESCE(SUM(amount), 0) AS total FROM xp_log WHERE skill_id = ?",
+    [skillId]
+  );
+  const newXp = Math.max(0, rows[0]?.total ?? 0);
+  const newLevel = Math.min(Math.max(1, levelForXp(newXp)), MAX_LEVEL);
+  await db.execute(
+    "UPDATE skills SET current_xp = ?, current_level = ? WHERE id = ?",
+    [newXp, newLevel, skillId]
+  );
+  return { newXp, newLevel };
+}
+
 // ─── Skills ────────────────────────────────────────────────────────────────
 
 export async function getAllSkills(): Promise<Skill[]> {
@@ -48,6 +69,23 @@ export async function getLastPracticedPerSkill(): Promise<Record<number, string>
     "SELECT skill_id, MAX(logged_at) as last_at FROM xp_log GROUP BY skill_id"
   );
   return Object.fromEntries(rows.map((r) => [r.skill_id, r.last_at]));
+}
+
+// Most recent completion time per quest for a skill — used to surface
+// least-recently-practiced repeatable quests (light spaced repetition).
+export async function getLastCompletionPerQuest(
+  skillId: number
+): Promise<Record<number, string>> {
+  const db = await getDb();
+  const rows = await db.select<{ quest_id: number; last_at: string }[]>(
+    `SELECT qc.quest_id, MAX(qc.completed_at) AS last_at
+     FROM quest_completions qc
+     JOIN quests q ON q.id = qc.quest_id
+     WHERE q.skill_id = ?
+     GROUP BY qc.quest_id`,
+    [skillId]
+  );
+  return Object.fromEntries(rows.map((r) => [r.quest_id, r.last_at]));
 }
 
 export async function getSkill(id: number): Promise<Skill | null> {
@@ -100,18 +138,14 @@ export async function addManualXp(
   const [skill] = await db.select<Skill[]>("SELECT * FROM skills WHERE id = ?", [skillId]);
   if (!skill) throw new Error("Skill not found");
 
-  const newXp = skill.current_xp + amount;
-  const newLevel = levelForXp(newXp);
-  const leveledUp = newLevel > skill.current_level;
+  const previousLevel = skill.current_level;
 
   await db.execute(
     "INSERT INTO xp_log (skill_id, amount, source, note) VALUES (?, ?, 'manual', ?)",
     [skillId, amount, note ?? null]
   );
-  await db.execute(
-    "UPDATE skills SET current_xp = ?, current_level = ? WHERE id = ?",
-    [newXp, newLevel, skillId]
-  );
+  const { newXp, newLevel } = await recomputeSkillXp(db, skillId);
+  const leveledUp = newLevel > previousLevel;
 
   return {
     xpGained: amount,
@@ -160,7 +194,7 @@ export async function getQuests(skillId: number): Promise<Quest[]> {
       (SELECT COUNT(*) FROM quest_completions WHERE quest_id = q.id) as completion_count
      FROM quests q
      WHERE q.skill_id = ?
-     ORDER BY q.level_num ASC, q.sort_order ASC, q.created_at ASC`,
+     ORDER BY q.level_num ASC, q.xp_reward ASC, q.sort_order ASC, q.created_at ASC`,
     [skillId]
   );
 }
@@ -251,9 +285,7 @@ export async function completeQuest(
   const skill = skills[0];
   if (!skill) throw new Error("Skill not found");
 
-  const newXp = skill.current_xp + quest.xp_reward;
-  const newLevel = Math.min(levelForXp(newXp), MAX_LEVEL);
-  const leveledUp = newLevel > skill.current_level;
+  const previousLevel = skill.current_level;
 
   await db.execute(
     "INSERT INTO quest_completions (quest_id, notes) VALUES (?, ?)",
@@ -263,16 +295,14 @@ export async function completeQuest(
     "INSERT INTO xp_log (skill_id, quest_id, amount, source, note) VALUES (?, ?, ?, 'quest_completion', ?)",
     [quest.skill_id, questId, quest.xp_reward, notes ?? null]
   );
-  await db.execute(
-    "UPDATE skills SET current_xp = ?, current_level = ? WHERE id = ?",
-    [newXp, newLevel, quest.skill_id]
-  );
   await db.execute("UPDATE quests SET is_active = 0 WHERE id = ?", [questId]);
+  const { newXp, newLevel } = await recomputeSkillXp(db, quest.skill_id);
+  const leveledUp = newLevel > previousLevel;
 
   return {
     xpGained: quest.xp_reward,
     newTotalXp: newXp,
-    previousLevel: skill.current_level,
+    previousLevel,
     newLevel,
     leveledUp,
     newLevelTitle: getLevelTitle(newLevel),
@@ -296,9 +326,6 @@ export async function uncompleteQuest(questId: number): Promise<void> {
   const skill = skills[0];
   if (!skill) return;
 
-  const newXp = Math.max(0, skill.current_xp - quest.xp_reward);
-  const newLevel = Math.max(1, levelForXp(newXp));
-
   await db.execute("DELETE FROM quest_completions WHERE id = ?", [completions[0].id]);
   const logEntries = await db.select<{ id: number }[]>(
     "SELECT id FROM xp_log WHERE skill_id = ? AND quest_id = ? AND source = 'quest_completion' ORDER BY logged_at DESC LIMIT 1",
@@ -307,10 +334,7 @@ export async function uncompleteQuest(questId: number): Promise<void> {
   if (logEntries.length > 0) {
     await db.execute("DELETE FROM xp_log WHERE id = ?", [logEntries[0].id]);
   }
-  await db.execute(
-    "UPDATE skills SET current_xp = ?, current_level = ? WHERE id = ?",
-    [newXp, newLevel, quest.skill_id]
-  );
+  await recomputeSkillXp(db, quest.skill_id);
 }
 
 // ─── Resources ─────────────────────────────────────────────────────────────
