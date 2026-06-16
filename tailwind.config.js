@@ -1,6 +1,14 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  safelist: [
+    "sm:max-w-xs",
+    "sm:max-w-sm",
+    "sm:max-w-md",
+    "sm:max-w-lg",
+    "sm:max-w-xl",
+    "sm:max-w-2xl",
+  ],
   darkMode: "class",
   theme: {
     extend: {

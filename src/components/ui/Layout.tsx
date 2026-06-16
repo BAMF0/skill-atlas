@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useSkillStore } from "../../store/useSkillStore";
 import { useThemeStore } from "../../store/useThemeStore";
+import { useSettingsStore } from "../../store/useSettingsStore";
 import Toaster from "./Toaster";
+import Modal from "./Modal";
 import { useToastStore } from "../../store/useToastStore";
 import { exportBackup, pickBackupFile, type BackupFile } from "../../lib/backup";
 import ImportBackupModal from "./ImportBackupModal";
@@ -13,8 +15,10 @@ export default function Layout() {
   const { skills, loadSkills } = useSkillStore();
   const { addToast } = useToastStore();
   const { isDark, toggle } = useThemeStore();
+  const { ollamaEnabled, ollamaModel, setOllamaEnabled, setOllamaModel, libraryRegistryUrl, setLibraryRegistryUrl } = useSettingsStore();
   const [pendingBackup, setPendingBackup] = useState<BackupFile | null>(null);
   const [showOverflow, setShowOverflow] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const isHome = location.pathname === "/";
 
@@ -134,6 +138,13 @@ export default function Layout() {
               Import
             </button>
             <button
+              onClick={() => setShowSettings(true)}
+              title="Settings"
+              className="px-2 py-1.5 text-warm-600 hover:text-warm-900 bg-transparent hover:bg-warm-200 rounded-md transition-colors text-sm leading-none"
+            >
+              ⚙
+            </button>
+            <button
               onClick={toggle}
               title={isDark ? "Switch to light mode" : "Switch to dark mode"}
               className="px-2 py-1.5 text-warm-600 hover:text-warm-900 bg-transparent hover:bg-warm-200 rounded-md transition-colors text-sm leading-none"
@@ -187,6 +198,13 @@ export default function Layout() {
                 >
                   Import backup
                 </button>
+                <div className="border-t border-warm-200 my-1" />
+                <button
+                  onClick={() => { setShowSettings(true); setShowOverflow(false); }}
+                  className="w-full text-left px-4 py-2 text-sm text-warm-700 hover:bg-warm-100"
+                >
+                  Settings
+                </button>
               </div>
             </>
           )}
@@ -239,6 +257,71 @@ export default function Layout() {
         backup={pendingBackup}
         onClose={() => setPendingBackup(null)}
       />
+
+      <Modal isOpen={showSettings} onClose={() => setShowSettings(false)} title="Settings" maxWidth="max-w-xs">
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-medium text-warm-800 mb-1">Local AI generation (Ollama)</p>
+            <p className="text-xs text-warm-500 mb-3">
+              Generate skills and quests with a model running locally via{" "}
+              <span className="font-mono text-warm-700">Ollama</span> — nothing leaves your device.
+              The manual copy-paste flow always remains available.
+            </p>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={ollamaEnabled}
+                onChange={(e) => setOllamaEnabled(e.target.checked)}
+                className="rounded border-warm-300 w-4 h-4"
+              />
+              <span className="text-sm text-warm-800">Enable local generation</span>
+            </label>
+          </div>
+
+          {ollamaEnabled && (
+            <div>
+              <label className="block text-xs font-medium text-warm-500 uppercase tracking-widest mb-1.5">
+                Model
+              </label>
+              <input
+                type="text"
+                value={ollamaModel}
+                onChange={(e) => setOllamaModel(e.target.value)}
+                placeholder="e.g. llama3.1"
+                className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+              />
+              <p className="text-xs text-warm-400 mt-1.5">
+                Must be an installed Ollama model (run <span className="font-mono">ollama pull {ollamaModel || "llama3.1"}</span>).
+                A <span className="font-mono">Generate</span> button appears in the import dialogs when Ollama is running.
+              </p>
+            </div>
+          )}
+
+          <div>
+            <p className="text-sm font-medium text-warm-800 mb-1">Skill module registry</p>
+            <p className="text-xs text-warm-500 mb-3">
+              URL to a compatible <span className="font-mono text-warm-700">index.json</span> registry.
+              Used by the Skill Library browser to fetch and install remote modules.
+            </p>
+            <input
+              type="text"
+              value={libraryRegistryUrl}
+              onChange={(e) => setLibraryRegistryUrl(e.target.value)}
+              placeholder="https://raw.githubusercontent.com/…/index.json"
+              className="w-full bg-white dark:bg-warm-100 border border-warm-200 rounded-lg px-3 py-2 text-sm text-warm-900 placeholder-warm-300 focus:outline-none focus:border-warm-400"
+            />
+          </div>
+
+          <div className="flex justify-end pt-1">
+            <button
+              onClick={() => setShowSettings(false)}
+              className="px-4 py-2 bg-warm-900 hover:bg-warm-800 text-warm-50 rounded-lg text-sm font-medium transition-colors"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
