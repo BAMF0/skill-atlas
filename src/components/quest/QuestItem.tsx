@@ -167,7 +167,7 @@ export default function QuestItem({ quest, skillColor, onCompleted, onDeleted, o
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {quest.is_repeatable ? (
-              <span className="text-xs text-warm-400 italic">repeatable</span>
+              <span className="text-sm text-warm-300" title="Repeatable">↻</span>
             ) : null}
             <span
               className="text-xs font-medium tabular-nums px-1.5 py-0.5 rounded"

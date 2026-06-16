@@ -166,9 +166,9 @@ export default function QuestList({
         </button>
 
         {isExpanded && (
-          <div className="p-3 space-y-1.5 bg-white dark:bg-warm-100">
+          <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-2 bg-white dark:bg-warm-100">
             {levelQuests.length === 0 && addingForLevel !== levelNum && (
-              <p className="text-xs text-warm-400 text-center py-3 italic">
+              <p className="text-xs text-warm-400 text-center py-3 italic md:col-span-2">
                 No quests for this level yet
               </p>
             )}
@@ -185,7 +185,7 @@ export default function QuestList({
             ))}
 
             {addingForLevel === levelNum ? (
-              <div className="border border-warm-200 rounded-lg p-3 bg-warm-50 dark:bg-warm-100 space-y-2 mt-2">
+              <div className="md:col-span-2 border border-warm-200 rounded-lg p-3 bg-warm-50 dark:bg-warm-100 space-y-2 mt-2">
                 <input
                   autoFocus
                   type="text"
@@ -247,7 +247,7 @@ export default function QuestList({
               !isLocked && levelNum <= MAX_LEVEL && (
                 <button
                   onClick={() => setAddingForLevel(levelNum)}
-                  className="w-full py-2 text-xs text-warm-400 hover:text-warm-600 border border-dashed border-warm-200 hover:border-warm-300 rounded-lg transition-colors"
+                  className="md:col-span-2 w-full py-2 text-xs text-warm-400 hover:text-warm-600 border border-dashed border-warm-200 hover:border-warm-300 rounded-lg transition-colors"
                 >
                   + Add quest
                 </button>
