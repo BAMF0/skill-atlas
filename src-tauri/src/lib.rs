@@ -167,17 +167,24 @@ pub fn run() {
             sql: include_str!("../migrations/004_skill_materials.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 5,
+            description: "skill_pause",
+            sql: include_str!("../migrations/005_skill_pause.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
         .setup(|app| {
             #[cfg(feature = "local-server")]
             {
-                let db_path = app
+                let app_data_dir = app
                     .path()
                     .app_data_dir()
-                    .expect("no app data dir")
-                    .join("skillatlas.db");
+                    .expect("no app data dir");
+                std::fs::create_dir_all(&app_data_dir).expect("failed to create app data dir");
+                let db_path = app_data_dir.join("skillatlas.db");
                 tauri::async_runtime::spawn(server::start(db_path));
             }
             Ok(())

@@ -1,6 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
 
-const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
+const isTauri = typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
 // Use the same host the page was loaded from so the phone reaches the laptop, not itself.
 const API_BASE = `http://${window.location.hostname}:7421`;
 
